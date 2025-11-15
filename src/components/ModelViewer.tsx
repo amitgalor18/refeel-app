@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -31,12 +31,14 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
   const controlsRef = useRef<OrbitControls | null>(null);
   const raycaster = useRef<THREE.Raycaster>(new THREE.Raycaster());
   const mouse = useRef<THREE.Vector2>(new THREE.Vector2());
+  const [modelLoaded, setModelLoaded] = useState(false);
   
 
   // Main initialization effect
   useEffect(() => {
     if (!containerRef.current || !modelFile) return;
 
+    setModelLoaded(false);
     // Use mountRef to avoid re-mounting on containerRef changes
     if (!mountRef.current) {
       mountRef.current = containerRef.current;
@@ -86,14 +88,17 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
       (object) => {
         console.log('Model loaded successfully:', modelFile);
         // Center and scale model
+        object.rotation.x = -90 * (Math.PI / 180); // Rotate to stand upright
         const box = new THREE.Box3().setFromObject(object);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
         const scale = 3.0 / maxDim;
 
+        
         object.position.sub(center.multiplyScalar(scale));
         object.scale.set(scale, scale, scale);
+        
         
         // Use a basic material
         object.traverse((child) => {
@@ -104,6 +109,8 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
 
         modelRef.current = object;
         scene.add(object);
+
+        setModelLoaded(true);
       },
       (xhr) => {
         console.log(`Model ${modelFile} loading: ${(xhr.loaded / xhr.total) * 100}%`);
@@ -243,9 +250,7 @@ useEffect(() => {
 
   // Effect for updating points (spheres) - NOW WITH VISUAL STATES
   useEffect(() => {
-    if (!sceneRef.current || !modelRef.current) {
-      return;
-    }
+    if (!sceneRef.current || !modelLoaded) return;
 
     // Clear old points from scene
     const oldPoints = sceneRef.current.children.filter(
@@ -320,7 +325,7 @@ useEffect(() => {
         sceneRef.current!.add(sphere);
       }
     });
-  }, [selectedPoints, modelRef.current, selectedPointIndex, uncommittedPointIndex]);
+  }, [selectedPoints, modelLoaded, modelRef.current, selectedPointIndex, uncommittedPointIndex]);
 
   return null;
 };
