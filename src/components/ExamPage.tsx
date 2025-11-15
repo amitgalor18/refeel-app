@@ -65,8 +65,8 @@ const ExamPage: React.FC<ExamPageProps> = ({
   setShowCameraModal,
   setPoints,
 }) => {
-  const stumpViewerRef = useRef<HTMLDivElement>(null);
-  const fullLimbViewerRef = useRef<HTMLDivElement>(null);
+  const stumpViewerRef = useRef<HTMLDivElement>(null!);
+  const fullLimbViewerRef = useRef<HTMLDivElement>(null!);
 
   const { stumpFile, fullFile } = getModelFilenames(examData);
 
@@ -131,17 +131,22 @@ const ExamPage: React.FC<ExamPageProps> = ({
     const pointToSave = points[selectedPoint];
     const { id, examId, ...saveData } = pointToSave;
     
+    if (!pointToSave.stumpPosition) {
+      alert('שגיאה: מיקום נקודה חסר. נסה ללחוץ שוב.');
+      return;
+    }
+
     const cleanedData = {
       ...saveData,
-      stumpPosition: saveData.stumpPosition ? {
-        x: Number(saveData.stumpPosition.x),
-        y: Number(saveData.stumpPosition.y),
-        z: Number(saveData.stumpPosition.z)
-      } : null,
-      limbPosition: saveData.limbPosition ? {
-        x: Number(saveData.limbPosition.x),
-        y: Number(saveData.limbPosition.y),
-        z: Number(saveData.limbPosition.z)
+      stumpPosition: { // This is now guaranteed to be non-null
+        x: Number(pointToSave.stumpPosition.x),
+        y: Number(pointToSave.stumpPosition.y),
+        z: Number(pointToSave.stumpPosition.z)
+      },
+      limbPosition: pointToSave.limbPosition ? {
+        x: Number(pointToSave.limbPosition.x),
+        y: Number(pointToSave.limbPosition.y),
+        z: Number(pointToSave.limbPosition.z)
       } : null,
     };
 
@@ -168,7 +173,8 @@ const ExamPage: React.FC<ExamPageProps> = ({
       }
     } catch (error) {
       console.error('❌ Error saving point:', error);
-      alert(`שגיאה בשמירת נקודה: ${error.message || error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`שגיאה בשמירת נקודה: ${errorMessage}`);
     }
   };
 
@@ -189,7 +195,8 @@ const ExamPage: React.FC<ExamPageProps> = ({
       
     } catch (error) {
       console.error('Error deleting point:', error);
-      alert('שגיאה במחיקת נקודה');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`שגיאה במחיקת נקודה: ${errorMessage}`);
     }
   };
 

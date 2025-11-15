@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type {ExamData, PointData} from './firebaseUtils';
 import WelcomePage from './components/WelcomePage';
 import ExamPage from './components/ExamPage';
@@ -23,7 +23,7 @@ const ReFeel = () => {
           alt=""
           className="fixed bottom-4 right-4 w-20 h-20 opacity-10 pointer-events-none z-0"
       />
-      <div>
+      <div className="relative z-10">
         {currentPage === 'welcome' && (
           <WelcomePage
             loadPatientId={loadPatientId}
