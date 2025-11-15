@@ -72,7 +72,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
 
   // NEW: Helper functions for uncommitted point logic
   const getUncommittedPointIndex = () => {
-    return points.findIndex(p => typeof p.id === 'number');
+   return points.findIndex(p => typeof p.id === 'string' && p.id.startsWith('temp-'));
   };
 
   const hasUncommittedPoint = () => {
@@ -81,7 +81,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
 
   const getPointVisualState = (index: number) => {
     const point = points[index];
-    const isUncommitted = typeof point.id === 'number';
+    const isUncommitted = typeof point.id === 'string' && point.id.startsWith('temp-');
     const isSelected = index === selectedPoint;
     
     return { isUncommitted, isSelected };
@@ -107,7 +107,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
       
       console.log('Creating new uncommitted point');
       const newPoint: PointData = {
-        id: Date.now(),
+        id: `temp-${Date.now()}`, // Temporary ID
         stumpPosition: position,
         limbPosition: null,
         stimulationType: '',
@@ -151,7 +151,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
     };
 
     try {
-      if (typeof id === 'number') {
+      if (typeof id === 'string' && id.startsWith('temp-')) {
         // Commit uncommitted point
         console.log('🆕 Committing uncommitted point...');
         const newFirebaseId = await createPoint(examData.id, cleanedData);
