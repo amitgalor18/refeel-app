@@ -235,9 +235,9 @@ const ExamPage: React.FC<ExamPageProps> = ({
         </div>
 
         {/* 3D Models */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-4">
           {/* Stump Model */}
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-lg shadow p-2 md:p-4">
             <h3 className="text-lg font-semibold mb-2 text-center">גדם</h3>
             <div ref={stumpViewerRef} className="w-full h-96 border rounded">
               <ModelViewer
@@ -252,8 +252,8 @@ const ExamPage: React.FC<ExamPageProps> = ({
           </div>
 
           {/* Full Limb Model */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-2 text-center">איבר שלם</h3>
+          <div className="bg-white rounded-lg shadow p-2 md:p-4">
+            <h3 className="text-lg font-semibold mb-2 text-center"> גפה </h3>
             <div ref={fullLimbViewerRef} className="w-full h-96 border rounded">
               <ModelViewer
                 containerRef={fullLimbViewerRef}
