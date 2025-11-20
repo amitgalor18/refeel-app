@@ -1,21 +1,21 @@
 // src/firebaseUtils.ts
-import { 
-  collection, 
-  addDoc, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
+import {
+  collection,
+  addDoc,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
   deleteDoc,
   query,
   where,
-  Timestamp 
+  Timestamp
 } from 'firebase/firestore';
-import { 
-  ref, 
-  uploadString, 
+import {
+  ref,
+  uploadString,
   getDownloadURL,
-  deleteObject 
+  deleteObject
 } from 'firebase/storage';
 import { db } from './firebase';
 import { getStorage } from 'firebase/storage';
@@ -43,6 +43,7 @@ export interface PointData {
   frequency: string;
   sensation: string;
   imageUrl: string | null;
+  createdAt?: any; // Firestore Timestamp
 }
 
 // ============= EXAM FUNCTIONS =============
@@ -68,7 +69,7 @@ export const createExam = async (examData: Omit<ExamData, 'id'>): Promise<string
  * Load an existing examination by patient name and ID
  */
 export const loadExam = async (
-  patientName: string, 
+  patientName: string,
   patientId: string
 ): Promise<ExamData | null> => {
   try {
@@ -77,23 +78,23 @@ export const loadExam = async (
       where('patientName', '==', patientName),
       where('patientId', '==', patientId)
     );
-    
+
     const querySnapshot = await getDocs(q);
-    
+
     if (querySnapshot.empty) {
       console.log('No exam found for this patient');
       return null;
     }
-    
+
     // Return the most recent exam
     const exams = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     } as ExamData));
-    
+
     // Sort by dateTime descending
     exams.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
-    
+
     return exams[0];
   } catch (error) {
     console.error('Error loading exam:', error);
@@ -110,7 +111,7 @@ export const getPatientExams = async (patientId: string): Promise<ExamData[]> =>
       collection(db, 'examinations'),
       where('patientId', '==', patientId)
     );
-    
+
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -126,7 +127,7 @@ export const getPatientExams = async (patientId: string): Promise<ExamData[]> =>
  * Update an examination
  */
 export const updateExam = async (
-  examId: string, 
+  examId: string,
   updates: Partial<ExamData>
 ): Promise<void> => {
   try {
@@ -150,7 +151,7 @@ export const createPoint = async (
 ): Promise<string> => {
   try {
     console.log('createPoint called with:', { examId, pointData });
-    
+
     // Ensure positions are plain objects, not THREE.Vector3
     const cleanData = {
       stumpPosition: pointData.stumpPosition ? {
@@ -170,9 +171,9 @@ export const createPoint = async (
       imageUrl: pointData.imageUrl || null,
       createdAt: Timestamp.now()
     };
-    
+
     console.log('Cleaned data for Firebase:', cleanData);
-    
+
     const docRef = await addDoc(
       collection(db, 'examinations', examId, 'points'),
       cleanData
@@ -193,7 +194,7 @@ export const getExamPoints = async (examId: string): Promise<PointData[]> => {
     const querySnapshot = await getDocs(
       collection(db, 'examinations', examId, 'points')
     );
-    
+
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       examId,
@@ -234,16 +235,16 @@ export const deletePoint = async (
     // First, get the point to check if it has an image
     const pointRef = doc(db, 'examinations', examId, 'points', pointId);
     const pointDoc = await getDoc(pointRef);
-    
+
     if (pointDoc.exists()) {
       const pointData = pointDoc.data() as PointData;
-      
+
       // Delete image from storage if it exists
       if (pointData.imageUrl) {
         await deletePointImage(examId, pointId);
       }
     }
-    
+
     // Delete the point document
     await deleteDoc(pointRef);
     console.log('Point deleted successfully');
@@ -267,7 +268,7 @@ export const uploadPointImage = async (
     const imageRef = ref(storage, `images/${examId}/${pointId}.jpg`);
     await uploadString(imageRef, imageDataUrl, 'data_url');
     const downloadUrl = await getDownloadURL(imageRef);
-    
+
     console.log('Image uploaded successfully');
     return downloadUrl;
   } catch (error) {
@@ -307,13 +308,13 @@ export const savePointWithImage = async (
       ...pointData,
       imageUrl: null
     });
-    
+
     // If there's an image, upload it and update the point
     if (imageDataUrl) {
       const imageUrl = await uploadPointImage(examId, pointId, imageDataUrl);
       await updatePoint(examId, pointId, { imageUrl });
     }
-    
+
     return pointId;
   } catch (error) {
     console.error('Error saving point with image:', error);
@@ -339,7 +340,7 @@ export const updatePointWithImage = async (
       // Upload new image
       imageUrl = await uploadPointImage(examId, pointId, imageDataUrl);
     }
-    
+
     // Update the point
     await updatePoint(examId, pointId, {
       ...pointData,

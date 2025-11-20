@@ -23,15 +23,15 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
   setPoints
 }) => (
   <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4" dir="rtl">
-    
+
     <div className="bg-white rounded-lg shadow-xl p-8 max-w-2xl w-full">
-        <img 
-            src="/logo_banner.png" 
-            alt="ReFeel Banner" 
-            className="w-full max-w-sm mx-auto mb-6" 
-        />
-      <p className="text-gray-600 mb-8 text-center">מערכת למיפוי תחושות בגדם לטיפול בנכים</p>
-      
+      <img
+        src="/logo_banner.png"
+        alt="ReFeel Banner"
+        className="w-full max-w-sm mx-auto mb-6"
+      />
+      <p className="text-gray-600 mb-8 text-center">מערכת למיפוי תחושות בגדם </p>
+
       <div className="space-y-6">
         {/* Load Existing Exam */}
         <div className="border-2 border-blue-200 rounded-lg p-6">
@@ -51,33 +51,33 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
               onChange={(e) => setLoadPatientId(e.target.value)}
               className="w-full p-2 border rounded"
             />
-              <button
-                onClick={async () => {
-                  if (!loadPatientName.trim() || !loadPatientId.trim()) {
-                    alert('נא למלא את כל השדות');
-                    return;
+            <button
+              onClick={async () => {
+                if (!loadPatientName.trim() || !loadPatientId.trim()) {
+                  alert('נא למלא את כל השדות');
+                  return;
+                }
+
+                try {
+                  const exam = await loadExam(loadPatientName, loadPatientId);
+                  if (exam) {
+                    const points = await getExamPoints(exam.id!);
+                    setExamData(exam);
+                    setPoints(points);
+                    setCurrentPage('exam');
+                    alert('בדיקה נטענה בהצלחה');
+                  } else {
+                    alert('לא נמצאה בדיקה למטופל זה');
                   }
-                  
-                  try {
-                    const exam = await loadExam(loadPatientName, loadPatientId);
-                    if (exam) {
-                      const points = await getExamPoints(exam.id!);
-                      setExamData(exam);
-                      setPoints(points);
-                      setCurrentPage('exam');
-                      alert('בדיקה נטענה בהצלחה');
-                    } else {
-                      alert('לא נמצאה בדיקה למטופל זה');
-                    }
-                  } catch (error) {
-                    console.error('Error loading exam:', error);
-                    alert('שגיאה בטעינת הבדיקה');
-                  }
-                }}
-                className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition"
-              >
-                טען מיפוי
-              </button>
+                } catch (error) {
+                  console.error('Error loading exam:', error);
+                  alert('שגיאה בטעינת הבדיקה');
+                }
+              }}
+              className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition"
+            >
+              טען מיפוי
+            </button>
           </div>
         </div>
 
