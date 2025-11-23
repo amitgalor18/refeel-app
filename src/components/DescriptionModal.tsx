@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { Edit, X } from 'lucide-react';
 import type { PointData } from '../firebaseUtils.ts';
 
 interface DescriptionModalProps {
-  point: PointData; // Pass the specific point
+  point: PointData;
+  therapistName: string;
+  initialViewMode?: boolean;
   onClose: () => void;
-  onSave: (updates: Partial<PointData>) => void; // Pass back an object with updates
+  onSave: (updates: Partial<PointData>) => void;
 }
 
 const DescriptionModal: React.FC<DescriptionModalProps> = ({
   point,
+  therapistName,
+  initialViewMode = false,
   onClose,
   onSave
 }) => {
+  const [isEditing, setIsEditing] = useState(!initialViewMode);
   // Local state for the form, initialized from the point prop
   const [formData, setFormData] = useState({
     stimulationType: point.stimulationType || '',
@@ -31,21 +37,121 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
   }, [point]);
 
   const handleSave = () => {
-    // Pass all form data back to ExamPage
     onSave(formData);
+    if (initialViewMode) {
+      setIsEditing(false);
+    }
   };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'לא ידוע';
+    // Handle Firestore Timestamp
+    if (timestamp.toDate) return timestamp.toDate().toLocaleString('he-IL');
+    // Handle Date object or string
+    return new Date(timestamp).toLocaleString('he-IL');
+  };
+
+  if (!isEditing) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
+        <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4 max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold">פרטי נקודה</h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {/* Metadata */}
+            <div className="bg-gray-50 p-4 rounded-lg grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="font-semibold text-gray-600 block">תאריך שמירה:</span>
+                <span>{formatDate(point.createdAt)}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-600 block">מטפל:</span>
+                <span>{therapistName}</span>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">סוג גירוי</label>
+                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                  {formData.stimulationType === 'massage' ? 'עיסוי (Massage)' :
+                    formData.stimulationType === 'ems' ? 'EMS' :
+                      formData.stimulationType === 'tens' ? 'TENS' :
+                        formData.stimulationType || '-'}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">תדירות</label>
+                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                  {formData.frequency || '-'}
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-600 mb-1">תוכנית</label>
+                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                  {formData.program || '-'}
+                </div>
+              </div>
+            </div>
+
+            {/* Sensation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">תיאור התחושה</label>
+              <div className="p-3 bg-gray-50 rounded border border-gray-200 min-h-[80px] whitespace-pre-wrap">
+                {formData.sensation || 'אין תיאור'}
+              </div>
+            </div>
+
+            {/* Image Thumbnail */}
+            {point.imageUrl && (
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">תמונה מצורפת</label>
+                <div className="relative w-32 h-32 border rounded overflow-hidden group">
+                  <img
+                    src={point.imageUrl}
+                    alt="Point"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all cursor-pointer flex items-center justify-center"
+                    onClick={() => window.open(point.imageUrl || '', '_blank')}>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action */}
+            <div className="flex justify-end pt-4 border-t">
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium px-4 py-2 rounded hover:bg-blue-50 transition-colors"
+              >
+                <Edit size={18} />
+                ערוך פרטים
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
       <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4">
         <h3 className="text-xl font-bold mb-4">תיאור נקודה</h3>
-        
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">סוג גירוי</label>
             <select
               value={formData.stimulationType}
-              onChange={(e) => setFormData({...formData, stimulationType: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, stimulationType: e.target.value })}
               className="w-full p-2 border rounded"
             >
               <option value="">בחר סוג</option>
@@ -60,7 +166,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
             <input
               type="text"
               value={formData.program}
-              onChange={(e) => setFormData({...formData, program: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, program: e.target.value })}
               className="w-full p-2 border rounded"
             />
           </div>
@@ -70,7 +176,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
             <input
               type="text"
               value={formData.frequency}
-              onChange={(e) => setFormData({...formData, frequency: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
               className="w-full p-2 border rounded"
             />
           </div>
@@ -79,7 +185,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
             <label className="block text-sm font-medium mb-1">תיאור התחושה</label>
             <textarea
               value={formData.sensation}
-              onChange={(e) => setFormData({...formData, sensation: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, sensation: e.target.value })}
               className="w-full p-2 border rounded h-32"
               placeholder="היכן באיבר הפנטום הורגשה התחושה? איך הרגישה?"
             ></textarea>

@@ -23,11 +23,17 @@ const CameraModal: React.FC<CameraModalProps> = ({
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // Use 'ideal' to prefer back camera but allow fallback to front automatically
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' }
+        }
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
     } catch (err) {
+      console.error("Error accessing camera:", err);
       alert('לא ניתן לגשת למצלמה');
     }
   };
@@ -61,7 +67,7 @@ const CameraModal: React.FC<CameraModalProps> = ({
     try {
       // Upload to Firebase Storage and get URL
       const downloadUrl = await uploadPointImage(examId, pointId, capturedImage);
-      
+
       // Pass the URL back to ExamPage
       onSave(downloadUrl);
 
@@ -93,7 +99,7 @@ const CameraModal: React.FC<CameraModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
       <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4">
         <h3 className="text-xl font-bold mb-4">צילום</h3>
-        
+
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-64">
             <Loader className="animate-spin text-blue-500" size={48} />
@@ -138,8 +144,8 @@ const CameraModal: React.FC<CameraModalProps> = ({
             </div>
           </div>
         )}
-        
-        <canvas ref={canvasRef} style={{display: 'none'}}></canvas>
+
+        <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
       </div>
     </div>
   );
