@@ -36,6 +36,9 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
     distanceFromStump: point.distanceFromStump || ''
   });
 
+  // State for custom image deletion confirmation modal
+  const [imageToDelete, setImageToDelete] = useState<{ url: string, isLegacy: boolean } | null>(null);
+
   // Update local state if the selected point changes
   useEffect(() => {
     setFormData({
@@ -54,15 +57,21 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
     }
   };
 
-  const handleDeleteImage = async (urlToDelete: string, isLegacy: boolean) => {
-    console.log('handleDeleteImage called', { urlToDelete, isLegacy });
-    if (!window.confirm('האם אתה בטוח שברצונך למחוק את התמונה?')) return;
+  const handleDeleteClick = (url: string, isLegacy: boolean) => {
+    setImageToDelete({ url, isLegacy });
+  };
+
+  const confirmDeleteImage = async () => {
+    if (!imageToDelete) return;
+
+    const { url, isLegacy } = imageToDelete;
+    console.log('Confirmed delete image', { url, isLegacy });
 
     try {
       // Delete from storage
       if (point.id && examId) {
         console.log('Deleting from storage...', { examId, pointId: point.id });
-        await deletePointImage(examId, point.id, urlToDelete);
+        await deletePointImage(examId, point.id, url);
       }
 
       // Update local state and parent
@@ -72,12 +81,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
         updates = { imageUrl: null };
       } else {
         const currentUrls = point.imageUrls || [];
-        const newImageUrls = currentUrls.filter(url => url !== urlToDelete);
-        console.log('Filtering images:', {
-          before: currentUrls.length,
-          after: newImageUrls.length,
-          urlToDelete
-        });
+        const newImageUrls = currentUrls.filter(u => u !== url);
         updates = { imageUrls: newImageUrls };
       }
 
@@ -86,6 +90,8 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
     } catch (error) {
       console.error('Error deleting image:', error);
       alert('שגיאה במחיקת תמונה');
+    } finally {
+      setImageToDelete(null);
     }
   };
 
@@ -100,7 +106,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
   if (!isEditing) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-        <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4 max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4 max-h-[90vh] overflow-y-auto relative">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold">פרטי נקודה</h3>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
@@ -180,7 +186,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (point.imageUrl) handleDeleteImage(point.imageUrl, true);
+                            if (point.imageUrl) handleDeleteClick(point.imageUrl, true);
                           }}
                           className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                           title="מחק תמונה"
@@ -205,7 +211,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteImage(url, false);
+                            handleDeleteClick(url, false);
                           }}
                           className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                           title="מחק תמונה"
@@ -230,6 +236,30 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Delete Confirmation Modal */}
+          {imageToDelete && (
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
+              <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+                <h4 className="text-lg font-bold mb-4">מחיקת תמונה</h4>
+                <p className="mb-6 text-gray-600">האם אתה בטוח שברצונך למחוק את התמונה?</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={confirmDeleteImage}
+                    className="flex-1 bg-red-500 text-white py-2 rounded hover:bg-red-600"
+                  >
+                    מחק
+                  </button>
+                  <button
+                    onClick={() => setImageToDelete(null)}
+                    className="flex-1 bg-gray-300 text-gray-800 py-2 rounded hover:bg-gray-400"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -237,7 +267,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4 relative">
         <h3 className="text-xl font-bold mb-4">תיאור נקודה</h3>
 
         <div className="space-y-4">
@@ -315,7 +345,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (point.imageUrl) handleDeleteImage(point.imageUrl, true);
+                        if (point.imageUrl) handleDeleteClick(point.imageUrl, true);
                       }}
                       className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                       title="מחק תמונה"
@@ -338,7 +368,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteImage(url, false);
+                        handleDeleteClick(url, false);
                       }}
                       className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                       title="מחק תמונה"
@@ -365,6 +395,30 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
               ביטול
             </button>
           </div>
+
+          {/* Delete Confirmation Modal (Edit Mode) */}
+          {imageToDelete && (
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
+              <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+                <h4 className="text-lg font-bold mb-4">מחיקת תמונה</h4>
+                <p className="mb-6 text-gray-600">האם אתה בטוח שברצונך למחוק את התמונה?</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={confirmDeleteImage}
+                    className="flex-1 bg-red-500 text-white py-2 rounded hover:bg-red-600"
+                  >
+                    מחק
+                  </button>
+                  <button
+                    onClick={() => setImageToDelete(null)}
+                    className="flex-1 bg-gray-300 text-gray-800 py-2 rounded hover:bg-gray-400"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
