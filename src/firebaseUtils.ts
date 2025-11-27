@@ -15,12 +15,10 @@ import {
   ref,
   uploadString,
   getDownloadURL,
-  deleteObject
+  deleteObject,
+  getStorage
 } from 'firebase/storage';
 import { db } from './firebase';
-import { getStorage } from 'firebase/storage';
-
-const storage = getStorage();
 
 // Types
 export interface ExamData {
@@ -31,6 +29,9 @@ export interface ExamData {
   location: string;
   therapistName: string;
   dateTime: string;
+  lastEdited?: string;
+  createdAt?: string;
+  deviceModel?: string;
 }
 
 export interface PointData {
@@ -42,7 +43,10 @@ export interface PointData {
   program: string;
   frequency: string;
   sensation: string;
-  imageUrl: string | null;
+  imageUrl: string | null; // Deprecated in favor of imageUrls
+  imageUrls?: string[]; // New field for multiple images
+  distanceFromStump?: string; // New field
+  order?: number; // New field for ordering
   createdAt?: any; // Firestore Timestamp
 }
 
@@ -55,7 +59,8 @@ export const createExam = async (examData: Omit<ExamData, 'id'>): Promise<string
   try {
     const docRef = await addDoc(collection(db, 'examinations'), {
       ...examData,
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      lastEdited: Timestamp.now()
     });
     console.log('Exam created with ID:', docRef.id);
     return docRef.id;
@@ -87,10 +92,16 @@ export const loadExam = async (
     }
 
     // Return the most recent exam
-    const exams = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as ExamData));
+    const exams = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Timestamps to ISO strings
+        lastEdited: data.lastEdited?.toDate?.().toISOString() || data.lastEdited,
+        createdAt: data.createdAt?.toDate?.().toISOString() || data.createdAt,
+      } as ExamData;
+    });
 
     // Sort by dateTime descending
     exams.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
@@ -113,10 +124,16 @@ export const getPatientExams = async (patientId: string): Promise<ExamData[]> =>
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as ExamData));
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Timestamps to ISO strings
+        lastEdited: data.lastEdited?.toDate?.().toISOString() || data.lastEdited,
+        createdAt: data.createdAt?.toDate?.().toISOString() || data.createdAt,
+      } as ExamData;
+    });
   } catch (error) {
     console.error('Error getting patient exams:', error);
     throw error;
@@ -132,7 +149,10 @@ export const updateExam = async (
 ): Promise<void> => {
   try {
     const examRef = doc(db, 'examinations', examId);
-    await updateDoc(examRef, updates);
+    await updateDoc(examRef, {
+      ...updates,
+      lastEdited: Timestamp.now()
+    });
     console.log('Exam updated successfully');
   } catch (error) {
     console.error('Error updating exam:', error);
@@ -148,9 +168,11 @@ export const updateExam = async (
 export const createPoint = async (
   examId: string,
   pointData: Omit<PointData, 'id' | 'examId'>
-): Promise<string> => {
+): Promise<{ id: string; createdAt: string }> => {
   try {
     console.log('createPoint called with:', { examId, pointData });
+
+    const now = Timestamp.now();
 
     // Ensure positions are plain objects, not THREE.Vector3
     const cleanData = {
@@ -169,7 +191,10 @@ export const createPoint = async (
       frequency: pointData.frequency || '',
       sensation: pointData.sensation || '',
       imageUrl: pointData.imageUrl || null,
-      createdAt: Timestamp.now()
+      imageUrls: pointData.imageUrls || [],
+      distanceFromStump: pointData.distanceFromStump || '',
+      order: typeof pointData.order === 'number' ? pointData.order : 0,
+      createdAt: now
     };
 
     console.log('Cleaned data for Firebase:', cleanData);
@@ -179,7 +204,11 @@ export const createPoint = async (
       cleanData
     );
     console.log('✅ Point created successfully with ID:', docRef.id);
-    return docRef.id;
+
+    return {
+      id: docRef.id,
+      createdAt: now.toDate().toISOString()
+    };
   } catch (error) {
     console.error('❌ Error creating point:', error);
     throw error;
@@ -195,11 +224,24 @@ export const getExamPoints = async (examId: string): Promise<PointData[]> => {
       collection(db, 'examinations', examId, 'points')
     );
 
-    return querySnapshot.docs.map(doc => ({
+    const points = querySnapshot.docs.map(doc => ({
       id: doc.id,
       examId,
       ...doc.data()
     } as PointData));
+
+    // Sort by order if available, otherwise by createdAt
+    points.sort((a, b) => {
+      if (a.order !== undefined && b.order !== undefined) {
+        return a.order - b.order;
+      }
+      // Fallback to createdAt
+      const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+      const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    return points;
   } catch (error) {
     console.error('Error getting points:', error);
     throw error;
@@ -239,9 +281,16 @@ export const deletePoint = async (
     if (pointDoc.exists()) {
       const pointData = pointDoc.data() as PointData;
 
-      // Delete image from storage if it exists
+      // Delete legacy image if exists
       if (pointData.imageUrl) {
-        await deletePointImage(examId, pointId);
+        await deletePointImage(examId, pointId, pointData.imageUrl);
+      }
+
+      // Delete multiple images if exist
+      if (pointData.imageUrls && pointData.imageUrls.length > 0) {
+        await Promise.all(pointData.imageUrls.map(url =>
+          deletePointImage(examId, pointId, url)
+        ));
       }
     }
 
@@ -254,10 +303,33 @@ export const deletePoint = async (
   }
 };
 
+/**
+ * Delete ALL points for an examination
+ * Used when changing limb/location which invalidates existing points
+ */
+export const deleteExamPoints = async (examId: string): Promise<void> => {
+  try {
+    const points = await getExamPoints(examId);
+
+    // Delete all points in parallel
+    await Promise.all(points.map(async (point) => {
+      if (point.id) {
+        await deletePoint(examId, point.id);
+      }
+    }));
+
+    console.log('All exam points deleted successfully');
+  } catch (error) {
+    console.error('Error deleting exam points:', error);
+    throw error;
+  }
+};
+
 // ============= IMAGE FUNCTIONS =============
 
 /**
  * Upload an image for a point
+ * Uses a timestamp to ensure unique filenames for multiple images per point
  */
 export const uploadPointImage = async (
   examId: string,
@@ -265,7 +337,8 @@ export const uploadPointImage = async (
   imageDataUrl: string
 ): Promise<string> => {
   try {
-    const imageRef = ref(storage, `images/${examId}/${pointId}.jpg`);
+    const timestamp = Date.now();
+    const imageRef = ref(getStorage(), `images/${examId}/${pointId}_${timestamp}.jpg`);
     await uploadString(imageRef, imageDataUrl, 'data_url');
     const downloadUrl = await getDownloadURL(imageRef);
 
@@ -279,75 +352,27 @@ export const uploadPointImage = async (
 
 /**
  * Delete an image for a point
+ * Supports deleting by URL or legacy path
  */
 export const deletePointImage = async (
   examId: string,
-  pointId: string
+  pointId: string,
+  imageUrl?: string
 ): Promise<void> => {
   try {
-    const imageRef = ref(storage, `images/${examId}/${pointId}.jpg`);
+    let imageRef;
+    if (imageUrl) {
+      // Create ref from URL
+      imageRef = ref(getStorage(), imageUrl);
+    } else {
+      // Fallback to legacy path
+      imageRef = ref(getStorage(), `images/${examId}/${pointId}.jpg`);
+    }
+
     await deleteObject(imageRef);
     console.log('Image deleted successfully');
   } catch (error) {
     // Image might not exist, that's okay
     console.warn('Error deleting image (might not exist):', error);
-  }
-};
-
-/**
- * Complete workflow: Save point with image
- */
-export const savePointWithImage = async (
-  examId: string,
-  pointData: Omit<PointData, 'id' | 'examId' | 'imageUrl'>,
-  imageDataUrl: string | null
-): Promise<string> => {
-  try {
-    // First create the point without image
-    const pointId = await createPoint(examId, {
-      ...pointData,
-      imageUrl: null
-    });
-
-    // If there's an image, upload it and update the point
-    if (imageDataUrl) {
-      const imageUrl = await uploadPointImage(examId, pointId, imageDataUrl);
-      await updatePoint(examId, pointId, { imageUrl });
-    }
-
-    return pointId;
-  } catch (error) {
-    console.error('Error saving point with image:', error);
-    throw error;
-  }
-};
-
-/**
- * Update point with new image
- */
-export const updatePointWithImage = async (
-  examId: string,
-  pointId: string,
-  pointData: Partial<PointData>,
-  imageDataUrl: string | null
-): Promise<void> => {
-  try {
-    // If there's a new image, upload it
-    let imageUrl = pointData.imageUrl;
-    if (imageDataUrl) {
-      // Delete old image if it exists
-      await deletePointImage(examId, pointId);
-      // Upload new image
-      imageUrl = await uploadPointImage(examId, pointId, imageDataUrl);
-    }
-
-    // Update the point
-    await updatePoint(examId, pointId, {
-      ...pointData,
-      imageUrl
-    });
-  } catch (error) {
-    console.error('Error updating point with image:', error);
-    throw error;
   }
 };

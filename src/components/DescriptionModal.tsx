@@ -1,29 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, X } from 'lucide-react';
+import { Edit, X, Trash2 } from 'lucide-react';
 import type { PointData } from '../firebaseUtils.ts';
+import { deletePointImage } from '../firebaseUtils.ts';
 
 interface DescriptionModalProps {
   point: PointData;
+  examId: string;
   therapistName: string;
   initialViewMode?: boolean;
   onClose: () => void;
-  onSave: (updates: Partial<PointData>) => void;
+  onSave: (updates: Partial<PointData>, shouldClose?: boolean) => void;
 }
 
 const DescriptionModal: React.FC<DescriptionModalProps> = ({
   point,
+  examId,
   therapistName,
   initialViewMode = false,
   onClose,
   onSave
 }) => {
+  console.log('DescriptionModal Render:', {
+    pointId: point.id,
+    imageUrlsCount: point.imageUrls?.length,
+    firstImageUrl: point.imageUrls?.[0]
+  });
+
   const [isEditing, setIsEditing] = useState(!initialViewMode);
   // Local state for the form, initialized from the point prop
   const [formData, setFormData] = useState({
     stimulationType: point.stimulationType || '',
     program: point.program || '',
     frequency: point.frequency || '',
-    sensation: point.sensation || ''
+    sensation: point.sensation || '',
+    distanceFromStump: point.distanceFromStump || ''
   });
 
   // Update local state if the selected point changes
@@ -32,14 +42,50 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
       stimulationType: point.stimulationType || '',
       program: point.program || '',
       frequency: point.frequency || '',
-      sensation: point.sensation || ''
+      sensation: point.sensation || '',
+      distanceFromStump: point.distanceFromStump || ''
     });
   }, [point]);
 
   const handleSave = () => {
-    onSave(formData);
+    onSave(formData, true);
     if (initialViewMode) {
       setIsEditing(false);
+    }
+  };
+
+  const handleDeleteImage = async (urlToDelete: string, isLegacy: boolean) => {
+    console.log('handleDeleteImage called', { urlToDelete, isLegacy });
+    if (!window.confirm('האם אתה בטוח שברצונך למחוק את התמונה?')) return;
+
+    try {
+      // Delete from storage
+      if (point.id && examId) {
+        console.log('Deleting from storage...', { examId, pointId: point.id });
+        await deletePointImage(examId, point.id, urlToDelete);
+      }
+
+      // Update local state and parent
+      let updates: Partial<PointData> = {};
+
+      if (isLegacy) {
+        updates = { imageUrl: null };
+      } else {
+        const currentUrls = point.imageUrls || [];
+        const newImageUrls = currentUrls.filter(url => url !== urlToDelete);
+        console.log('Filtering images:', {
+          before: currentUrls.length,
+          after: newImageUrls.length,
+          urlToDelete
+        });
+        updates = { imageUrls: newImageUrls };
+      }
+
+      console.log('Calling onSave with updates:', updates);
+      onSave(updates, false);
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      alert('שגיאה במחיקת תמונה');
     }
   };
 
@@ -93,6 +139,12 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                 </div>
               </div>
               <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-600 mb-1">מרחק מקצה הגדם</label>
+                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                  {formData.distanceFromStump ? `${formData.distanceFromStump} ס"מ` : '-'}
+                </div>
+              </div>
+              <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-600 mb-1">תוכנית</label>
                 <div className="p-2 bg-gray-50 rounded border border-gray-200">
                   {formData.program || '-'}
@@ -108,22 +160,64 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
               </div>
             </div>
 
-            {/* Image Thumbnail */}
-            {point.imageUrl && (
+            {/* Image Grid */}
+            {(point.imageUrls?.length || 0) > 0 || point.imageUrl ? (
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">תמונה מצורפת</label>
-                <div className="relative w-32 h-32 border rounded overflow-hidden group">
-                  <img
-                    src={point.imageUrl}
-                    alt="Point"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all cursor-pointer flex items-center justify-center"
-                    onClick={() => window.open(point.imageUrl || '', '_blank')}>
-                  </div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">תמונות מצורפות</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Legacy single image */}
+                  {point.imageUrl && (
+                    <div className="relative aspect-square border rounded overflow-hidden group">
+                      <img
+                        src={point.imageUrl}
+                        alt="Point"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all cursor-pointer flex items-center justify-center"
+                        onClick={() => window.open(point.imageUrl || '', '_blank')}>
+                      </div>
+                      {isEditing && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (point.imageUrl) handleDeleteImage(point.imageUrl, true);
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="מחק תמונה"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {/* New multiple images */}
+                  {point.imageUrls?.map((url, index) => (
+                    <div key={url} className="relative aspect-square border rounded overflow-hidden group">
+                      <img
+                        src={url}
+                        alt={`Point ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all cursor-pointer flex items-center justify-center"
+                        onClick={() => window.open(url, '_blank')}>
+                      </div>
+                      {isEditing && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteImage(url, false);
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="מחק תמונה"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Action */}
             <div className="flex justify-end pt-4 border-t">
@@ -182,6 +276,17 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
           </div>
 
           <div>
+            <label className="block text-sm font-medium mb-1">מרחק מקצה הגדם (ס"מ)</label>
+            <input
+              type="number"
+              value={formData.distanceFromStump}
+              onChange={(e) => setFormData({ ...formData, distanceFromStump: e.target.value })}
+              className="w-full p-2 border rounded"
+              placeholder="0"
+            />
+          </div>
+
+          <div>
             <label className="block text-sm font-medium mb-1">תיאור התחושה</label>
             <textarea
               value={formData.sensation}
@@ -190,6 +295,61 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
               placeholder="היכן באיבר הפנטום הורגשה התחושה? איך הרגישה?"
             ></textarea>
           </div>
+
+          {/* Image Grid (Edit Mode) */}
+          {(point.imageUrls?.length || 0) > 0 || point.imageUrl ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-2">תמונות מצורפות</label>
+              <div className="grid grid-cols-3 gap-2">
+                {/* Legacy single image */}
+                {point.imageUrl && (
+                  <div className="relative aspect-square border rounded overflow-hidden group">
+                    <img
+                      src={point.imageUrl}
+                      alt="Point"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all cursor-pointer flex items-center justify-center"
+                      onClick={() => window.open(point.imageUrl || '', '_blank')}>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (point.imageUrl) handleDeleteImage(point.imageUrl, true);
+                      }}
+                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="מחק תמונה"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+                {/* New multiple images */}
+                {point.imageUrls?.map((url, index) => (
+                  <div key={url} className="relative aspect-square border rounded overflow-hidden group">
+                    <img
+                      src={url}
+                      alt={`Point ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all cursor-pointer flex items-center justify-center"
+                      onClick={() => window.open(url, '_blank')}>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteImage(url, false);
+                      }}
+                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="מחק תמונה"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex gap-3">
             <button
