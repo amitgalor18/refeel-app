@@ -1,5 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { Camera, Upload, Save, Trash2, Edit, Image as ImageIcon, CheckCircle, ChevronDown, Info } from 'lucide-react';
+import {
+  Camera,
+  Save,
+  Trash2,
+  Edit,
+  Image as ImageIcon,
+  CheckCircle,
+  ChevronDown,
+  Info
+} from 'lucide-react';
 import type { ExamData, PointData } from '../firebaseUtils';
 import { createPoint, updatePoint, deletePoint } from '../firebaseUtils';
 import ModelViewer from './ModelViewer';
@@ -10,62 +19,61 @@ interface ExamPageProps {
   examData: ExamData | null;
   points: PointData[];
   selectedPoint: number | null;
-  showMappingMode: boolean;
   showDescriptionModal: boolean;
   showCameraModal: boolean;
-  setCurrentPage: (page: string) => void;
   setSelectedPoint: (index: number | null) => void;
   setShowDescriptionModal: (show: boolean) => void;
-  setShowMappingMode: (show: boolean) => void;
   setShowCameraModal: (show: boolean) => void;
-  setPoints: (points: PointData[]) => void;
+  setPoints: (points: PointData[] | ((prev: PointData[]) => PointData[])) => void;
 }
 
 const getModelFilenames = (exam: ExamData | null) => {
-  if (!exam) return { stumpFile: '', fullFile: '' };
+  if (!exam || !exam.limb) return { stumpFile: '', fullFile: '' };
 
+  // exam.limb format: 'leg-right', 'leg-left', 'arm-right', 'arm-left'
+  const [limbType, side] = exam.limb.split('-'); // e.g. ['leg', 'right']
+
+  // Filenames are like: 'right-leg-full.obj'
+  const filePrefix = `${side}-${limbType}`;
+
+  const fullFile = `${filePrefix}-full.obj`;
   let stumpFile = '';
-  let fullFile = '';
 
-  if (exam.limb?.includes('leg')) {
-    fullFile = 'right-leg-full.obj';
-  } else if (exam.limb?.includes('arm')) {
-    fullFile = 'right-arm-full.obj';
-  }
-
-  if (exam.limb?.includes('leg')) {
-    if (exam.location?.includes('below-knee')) {
-      stumpFile = 'right-leg-below-knee.obj';
-    } else if (exam.location?.includes('above-knee')) {
-      stumpFile = 'right-leg-above-knee.obj';
-    }
-  } else if (exam.limb?.includes('arm')) {
-    if (exam.location?.includes('below-elbow')) {
-      stumpFile = 'right-arm-below-elbow.obj';
-    } else if (exam.location?.includes('above-elbow')) {
-      stumpFile = 'right-arm-above-elbow.obj';
+  if (exam.location) {
+    // Handle specific file typo for left arm above elbow if needed
+    // Based on file list: "left-arm-above-elbow..obj"
+    if (filePrefix === 'left-arm' && exam.location === 'above-elbow') {
+      stumpFile = 'left-arm-above-elbow..obj';
+    } else {
+      stumpFile = `${filePrefix}-${exam.location}.obj`;
     }
   }
 
+  // Fallback to full file if stump file is not determined (e.g. no location)
   if (!stumpFile) stumpFile = fullFile;
-  return { stumpFile, fullFile };
+
+  // Return just the filename, ModelViewer adds the /models/ prefix
+  return {
+    stumpFile: stumpFile,
+    fullFile: fullFile
+  };
 };
 
 const ExamPage: React.FC<ExamPageProps> = ({
   examData,
   points,
   selectedPoint,
-  setCurrentPage,
+  showDescriptionModal,
+  showCameraModal,
   setSelectedPoint,
+  setShowDescriptionModal,
+  setShowCameraModal,
   setPoints,
 }) => {
   const stumpViewerRef = useRef<HTMLDivElement>(null!);
   const fullLimbViewerRef = useRef<HTMLDivElement>(null!);
   const [isLimbViewOpen, setIsLimbViewOpen] = useState(true);
-  const [showCameraModal, setShowCameraModal] = useState(false);
-  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [descriptionModalViewMode, setDescriptionModalViewMode] = useState(false); // NEW: Control initial view mode
-  const [showMappingMode, setShowMappingMode] = useState(false);
 
   const { stumpFile, fullFile } = getModelFilenames(examData);
 
@@ -80,11 +88,15 @@ const ExamPage: React.FC<ExamPageProps> = ({
 
   const getPointVisualState = (index: number) => {
     const point = points[index];
+    if (!point) return { isUncommitted: false, isSelected: false };
+
     const isUncommitted = typeof point.id === 'string' && point.id.startsWith('temp-');
     const isSelected = index === selectedPoint;
 
     return { isUncommitted, isSelected };
   };
+
+
 
   // NEW: Handle stump clicks - move uncommitted or create new
   const handleStumpClick = (position: { x: number; y: number; z: number }) => {
@@ -114,22 +126,24 @@ const ExamPage: React.FC<ExamPageProps> = ({
         frequency: '',
         sensation: '',
         imageUrl: null,
+        imageUrls: [],
+        distanceFromStump: '',
+        order: points.length + 1 // Assign order
       };
       setPoints([...points, newPoint]);
       setSelectedPoint(points.length);
     }
-    // Auto-enter mapping mode
-    setShowMappingMode(true);
+    // Implicit mapping mode - no explicit toggle needed
   };
 
-  // UPDATED: Save handler - commits uncommitted points
-  const handleSavePoint = async () => {
+  // UPDATED: Commit handler - saves point to Firebase
+  const handleCommitPoint = async (pointToSaveOverride?: PointData) => {
     if (selectedPoint === null || !examData?.id) {
       alert('שגיאה: חסרים נתונים לשמירה');
       return;
     }
 
-    const pointToSave = points[selectedPoint];
+    const pointToSave = pointToSaveOverride || points[selectedPoint];
     const { id, examId, ...saveData } = pointToSave;
 
     if (!pointToSave.stumpPosition) {
@@ -149,19 +163,35 @@ const ExamPage: React.FC<ExamPageProps> = ({
         y: Number(pointToSave.limbPosition.y),
         z: Number(pointToSave.limbPosition.z)
       } : null,
+      // Use nullish coalescing to preserve 0 if it exists, though we prefer 1-based.
+      // Fallback to points.length + 1 for new points if order is missing.
+      order: pointToSave.order ?? (points.length + 1)
     };
 
     try {
       if (typeof id === 'string' && id.startsWith('temp-')) {
         // Commit uncommitted point
         console.log('🆕 Committing uncommitted point...');
-        const newFirebaseId = await createPoint(examData.id, cleanedData);
+        const result = await createPoint(examData.id, cleanedData);
+        // result is { id: string, createdAt: string }
 
-        const updatedPoints = [...points];
-        updatedPoints[selectedPoint].id = newFirebaseId;
-        setPoints(updatedPoints);
+        // Update local state with real ID using FUNCTIONAL UPDATE to avoid stale state
+        setPoints((currentPoints) => {
+          const updatedPoints = [...currentPoints];
+          // Find the point by its temp ID (id from closure)
+          const indexToUpdate = updatedPoints.findIndex(p => p.id === id);
 
-        alert('נקודה נשמרה בהצלחה!');
+          if (indexToUpdate !== -1) {
+            updatedPoints[indexToUpdate] = {
+              ...updatedPoints[indexToUpdate],
+              id: result.id,
+              createdAt: result.createdAt // Update createdAt immediately
+            };
+          }
+          return updatedPoints;
+        });
+
+        console.log('Point saved successfully!');
         setSelectedPoint(null);
 
       } else if (typeof id === 'string') {
@@ -169,7 +199,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
         console.log('📝 Updating existing point...');
         await updatePoint(examData.id, id, cleanedData);
 
-        alert('נקודה עודכנה בהצלחה!');
+        console.log('Point updated successfully!');
         setSelectedPoint(null);
       }
     } catch (error) {
@@ -179,25 +209,49 @@ const ExamPage: React.FC<ExamPageProps> = ({
     }
   };
 
-  const handleDeletePoint = async (indexToDelete: number) => {
+  const [deleteConfirmationIndex, setDeleteConfirmationIndex] = useState<number | null>(null);
+
+  const handleDeletePoint = (indexToDelete: number) => {
+    setDeleteConfirmationIndex(indexToDelete);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirmationIndex === null) return;
+
+    const indexToDelete = deleteConfirmationIndex;
     const pointToDelete = points[indexToDelete];
 
-    if (!window.confirm(`האם אתה בטוח שברצונך למחוק את נקודה ${indexToDelete + 1}?`)) {
-      return;
-    }
+    console.log('🗑️ Confirmed delete for point:', {
+      index: indexToDelete,
+      id: pointToDelete.id,
+      examId: examData?.id
+    });
 
     try {
-      if (typeof pointToDelete.id === 'string' && examData?.id) {
+      // Only delete from Firebase if it's a saved point (not starting with temp-)
+      if (typeof pointToDelete.id === 'string' && !pointToDelete.id.startsWith('temp-') && examData?.id) {
+        console.log('🔥 Calling deletePoint on Firebase...', { examId: examData.id, pointId: pointToDelete.id });
         await deletePoint(examData.id, pointToDelete.id);
+        console.log('✅ Firebase delete successful');
+      } else {
+        console.log('ℹ️ Skipping Firebase delete (temp point or missing examId)');
       }
 
-      setPoints(points.filter((_, i) => i !== indexToDelete));
+      // Use functional update for safety
+      setPoints(currentPoints => {
+        const newPoints = currentPoints.filter((_, i) => i !== indexToDelete);
+        // Re-assign order based on new index
+        return newPoints.map((p, i) => ({ ...p, order: i + 1 }));
+      });
+
       if (selectedPoint === indexToDelete) setSelectedPoint(null);
 
     } catch (error) {
-      console.error('Error deleting point:', error);
+      console.error('❌ Error deleting point:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert(`שגיאה במחיקת נקודה: ${errorMessage}`);
+    } finally {
+      setDeleteConfirmationIndex(null);
     }
   };
 
@@ -208,16 +262,15 @@ const ExamPage: React.FC<ExamPageProps> = ({
         const position = forLimb ? p.limbPosition : p.stumpPosition;
         if (!position) return null;
 
-        const isUncommitted = typeof p.id === 'string' && p.id.startsWith('temp-');
-        const isSelected = index === selectedPoint;
+        const { isUncommitted, isSelected } = getPointVisualState(index);
 
         // Determine color
         let color = 0xff0000; // Default Red
 
         // Logic:
         // 1. Stump: Blue if uncommitted
-        // 2. Limb: Blue ONLY if currently mapping (showMappingMode is true)
-        const isBlue = (!forLimb && isUncommitted) || (forLimb && isSelected && showMappingMode);
+        // 2. Limb: Blue if selected (implicit mapping)
+        const isBlue = (!forLimb && isUncommitted) || (forLimb && isSelected);
 
         if (isBlue) {
           color = 0x4169E1; // Blue
@@ -240,12 +293,27 @@ const ExamPage: React.FC<ExamPageProps> = ({
       .filter((p): p is NonNullable<typeof p> => p !== null);
   };
 
-  const handleSaveDescription = (updates: Partial<PointData>) => {
+  const handleSaveDescription = async (updates: Partial<PointData>, shouldClose: boolean = true) => {
     if (selectedPoint === null) return;
+
+    // 1. Update local state
     const updatedPoints = [...points];
-    updatedPoints[selectedPoint] = { ...updatedPoints[selectedPoint], ...updates };
+    const mergedPoint = { ...updatedPoints[selectedPoint], ...updates };
+    console.log('handleSaveDescription updating state:', {
+      index: selectedPoint,
+      prevImages: points[selectedPoint].imageUrls,
+      newImages: mergedPoint.imageUrls
+    });
+    updatedPoints[selectedPoint] = mergedPoint;
     setPoints(updatedPoints);
-    setShowDescriptionModal(false);
+
+    // 2. Close modal if requested
+    if (shouldClose) {
+      setShowDescriptionModal(false);
+    }
+
+    // 3. Commit to Firebase
+    await handleCommitPoint(mergedPoint);
   };
 
   return (
@@ -260,34 +328,14 @@ const ExamPage: React.FC<ExamPageProps> = ({
           />
         </div>
 
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow p-4 mb-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-blue-600">ReFeel -  בדיקת מיפוי שגרתית</h1>
-              <p className="text-sm text-gray-600">
-                מטופל: {examData?.patientName} | ת.ז: {examData?.patientId} |
-                מטפל: {examData?.therapistName} |
-                תאריך: {examData ? new Date(examData.dateTime).toLocaleDateString('he-IL') : ''}
-              </p>
-            </div>
-            <button
-              onClick={() => setCurrentPage('welcome')}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            >
-              סיים בדיקה
-            </button>
-          </div>
-        </div>
+        {/* Header Removed - Moved to TopBar */}
 
         {/* Instruction with hint about uncommitted point */}
         <div className="bg-blue-100 border-2 border-blue-300 rounded-lg p-3 mb-4 text-center">
           <p className="text-lg font-semibold text-blue-800">
-            {showMappingMode
-              ? 'בחרו נקודה תואמת על האיבר השלם'
-              : hasUncommittedPoint()
-                ? 'נקודה כחולה טרם נשמרה - לחץ על מיקום אחר להזיז אותה או לחץ "שמירה" לשמור'
-                : 'בחרו נקודה על הגדם'}
+            {hasUncommittedPoint()
+              ? 'נקודה כחולה טרם נשמרה - לחץ על האיבר השלם למיפוי, או לחץ "שמירה" להוספת פרטים'
+              : 'בחרו נקודה על הגדם'}
           </p>
         </div>
 
@@ -312,7 +360,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
               className="flex justify-between items-center mb-2 cursor-pointer"
               onClick={() => setIsLimbViewOpen(!isLimbViewOpen)}
             >
-              <h3 className="text-lg font-semibold text-center">איבר שלם</h3>
+              <h3 className="text-lg font-semibold text-center">איבר פנטום</h3>
               <ChevronDown
                 size={20}
                 className={`transition-transform duration-300 ${isLimbViewOpen ? 'rotate-180' : ''}`}
@@ -329,12 +377,11 @@ const ExamPage: React.FC<ExamPageProps> = ({
                 modelFile={fullFile}
                 visualPoints={getVisualPoints(true)}
                 onPointSelect={
-                  showMappingMode && selectedPoint !== null
+                  selectedPoint !== null
                     ? (position) => {
                       const updatedPoints = [...points];
                       updatedPoints[selectedPoint].limbPosition = position;
                       setPoints(updatedPoints);
-                      // Removed setShowMappingMode(false) to allow re-clicking
                     }
                     : null
                 }
@@ -355,38 +402,21 @@ const ExamPage: React.FC<ExamPageProps> = ({
             </h3>
             <div className="flex gap-3">
               <button
-                onClick={() => {
-                  if (selectedPoint !== null) {
-                    setDescriptionModalViewMode(false); // Edit mode
-                    setShowDescriptionModal(true);
-                  } else {
-                    alert('אנא בחר נקודה תחילה');
-                  }
-                }}
-                className={`flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 flex items-center justify-center gap-2`}
-              >
-                <Edit size={18} />
-                תיאור
-              </button>
-              <button
-                onClick={() => setShowMappingMode(!showMappingMode)}
-                className={`flex-1 text-white py-2 rounded flex items-center justify-center gap-2 ${showMappingMode
-                  ? 'bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-400'
-                  : 'bg-gray-500 hover:bg-gray-600'
-                  }`}
-              >
-                <Upload size={18} />
-                {showMappingMode ? 'סיים מיפוי' : 'מיפוי'}
-              </button>
-              <button
+                disabled={((points[selectedPoint].imageUrls?.length || 0) + (points[selectedPoint].imageUrl ? 1 : 0)) >= 5}
                 onClick={() => setShowCameraModal(true)}
-                className="flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 flex items-center justify-center gap-2"
+                className={`flex-1 py-2 rounded flex items-center justify-center gap-2 ${((points[selectedPoint].imageUrls?.length || 0) + (points[selectedPoint].imageUrl ? 1 : 0)) >= 5
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gray-500 text-white hover:bg-gray-600'
+                  }`}
               >
                 <Camera size={18} />
                 צילום
               </button>
               <button
-                onClick={handleSavePoint}
+                onClick={() => {
+                  setDescriptionModalViewMode(false); // Edit mode
+                  setShowDescriptionModal(true);
+                }}
                 className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 flex items-center justify-center gap-2"
               >
                 <Save size={18} />
@@ -404,7 +434,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
               <thead className="bg-gray-100">
                 <tr>
                   <th className="p-2 text-right">#</th>
-                  <th className="p-2 text-right">מצב</th>
+                  {/* Removed Date and Status columns as requested */}
                   <th className="p-2 text-right">תיאור</th>
                   <th className="p-2 text-right">מיפוי</th>
                   <th className="p-2 text-right">תמונה</th>
@@ -420,16 +450,12 @@ const ExamPage: React.FC<ExamPageProps> = ({
                       ? 'bg-blue-50 border-l-4 border-blue-500'
                       : 'border-t';
 
+                  const imageCount = (point.imageUrls?.length || 0) + (point.imageUrl ? 1 : 0);
+
                   return (
                     <tr key={point.id} className={rowClass}>
                       <td className="p-2">{idx + 1}</td>
-                      <td className="p-2">
-                        {isUncommitted ? (
-                          <span className="text-blue-600 text-xs font-semibold">טרם נשמר</span>
-                        ) : (
-                          <span className="text-green-600 text-xs font-semibold">נשמר</span>
-                        )}
-                      </td>
+                      {/* Removed Date and Status cells */}
                       <td className="p-2">{point.sensation || '-'}</td>
                       <td className="p-2">
                         {point.limbPosition ? (
@@ -439,8 +465,19 @@ const ExamPage: React.FC<ExamPageProps> = ({
                         )}
                       </td>
                       <td className="p-2">
-                        {point.imageUrl ? (
-                          <CheckCircle size={18} className="text-green-500" />
+                        {imageCount > 0 ? (
+                          <button
+                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                            onClick={() => {
+                              // Open first image for now, or all in new tabs
+                              const urls = [...(point.imageUrls || [])];
+                              if (point.imageUrl) urls.unshift(point.imageUrl);
+                              urls.forEach(url => window.open(url, '_blank'));
+                            }}
+                          >
+                            <ImageIcon size={18} />
+                            {imageCount > 1 && <span className="text-xs font-bold">{imageCount}</span>}
+                          </button>
                         ) : (
                           '-'
                         )}
@@ -468,15 +505,6 @@ const ExamPage: React.FC<ExamPageProps> = ({
                           >
                             <Info size={18} />
                           </button>
-                          {point.imageUrl && (
-                            <button
-                              onClick={() => window.open(point.imageUrl || '', '_blank')}
-                              title="פתח תמונה"
-                              className="text-green-600 hover:text-green-800"
-                            >
-                              <ImageIcon size={18} />
-                            </button>
-                          )}
                           <button
                             onClick={() => handleDeletePoint(idx)}
                             title="מחק"
@@ -499,9 +527,33 @@ const ExamPage: React.FC<ExamPageProps> = ({
       </div>
 
       {/* Modals */}
+      {deleteConfirmationIndex !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full m-4">
+            <h3 className="text-xl font-bold mb-4">מחיקת נקודה</h3>
+            <p className="mb-6">האם אתה בטוח שברצונך למחוק את נקודה {deleteConfirmationIndex + 1}?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={confirmDelete}
+                className="flex-1 bg-red-500 text-white py-2 rounded hover:bg-red-600"
+              >
+                מחק
+              </button>
+              <button
+                onClick={() => setDeleteConfirmationIndex(null)}
+                className="flex-1 bg-gray-300 py-2 rounded hover:bg-gray-400"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDescriptionModal && selectedPoint !== null && (
         <DescriptionModal
           point={points[selectedPoint]}
+          examId={examData?.id || ''}
           therapistName={examData?.therapistName || 'לא ידוע'}
           initialViewMode={descriptionModalViewMode}
           onClose={() => setShowDescriptionModal(false)}
@@ -513,11 +565,24 @@ const ExamPage: React.FC<ExamPageProps> = ({
           point={points[selectedPoint]}
           examId={examData?.id || ''}
           onClose={() => setShowCameraModal(false)}
-          onSave={(imageUrl) => {
+          onSave={async (imageUrl) => {
             const updatedPoints = [...points];
-            updatedPoints[selectedPoint].imageUrl = imageUrl;
+            const point = updatedPoints[selectedPoint];
+
+            // Append new image URL
+            const currentImages = point.imageUrls || [];
+            const updatedPoint = {
+              ...point,
+              imageUrls: [...currentImages, imageUrl]
+            };
+
+            updatedPoints[selectedPoint] = updatedPoint;
+
             setPoints(updatedPoints);
             setShowCameraModal(false);
+
+            // Auto-save to Firebase
+            await handleCommitPoint(updatedPoint);
           }}
         />
       )}
