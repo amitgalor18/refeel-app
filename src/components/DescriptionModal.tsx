@@ -339,18 +339,22 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                       alt="Point"
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all cursor-pointer flex items-center justify-center"
-                      onClick={() => window.open(point.imageUrl || '', '_blank')}>
+                    {/* Overlay for click action - disabled in edit mode */}
+                    <div className={`absolute inset-0 transition-all flex items-center justify-center ${!isEditing ? 'bg-black bg-opacity-0 group-hover:bg-opacity-20 cursor-pointer' : ''}`}
+                      onClick={() => !isEditing && window.open(point.imageUrl || '', '_blank')}>
                     </div>
+
+                    {/* Delete button - always visible and larger in edit mode */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         if (point.imageUrl) handleDeleteClick(point.imageUrl, true);
                       }}
-                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 bg-red-500 text-white p-2 rounded-full shadow-md z-10 hover:bg-red-600"
                       title="מחק תמונה"
+                      type="button"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 )}
@@ -362,18 +366,22 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                       alt={`Point ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all cursor-pointer flex items-center justify-center"
-                      onClick={() => window.open(url, '_blank')}>
+                    {/* Overlay for click action - disabled in edit mode */}
+                    <div className={`absolute inset-0 transition-all flex items-center justify-center ${!isEditing ? 'bg-black bg-opacity-0 group-hover:bg-opacity-20 cursor-pointer' : ''}`}
+                      onClick={() => !isEditing && window.open(url, '_blank')}>
                     </div>
+
+                    {/* Delete button - always visible and larger in edit mode */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteClick(url, false);
                       }}
-                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 bg-red-500 text-white p-2 rounded-full shadow-md z-10 hover:bg-red-600"
                       title="מחק תמונה"
+                      type="button"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 ))}
