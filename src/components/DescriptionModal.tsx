@@ -105,54 +105,54 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
 
   if (!isEditing) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-        <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4 max-h-[90vh] overflow-y-auto relative">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" dir="rtl">
+        <div className="bg-bg-secondary rounded-xl p-6 max-w-2xl w-full m-4 max-h-[90vh] overflow-y-auto relative border border-border-subtle text-text-primary">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold">פרטי נקודה</h3>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <h3 className="text-xl font-bold text-text-primary">פרטי נקודה</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-text-primary transition">
               <X size={24} />
             </button>
           </div>
 
           <div className="space-y-6">
             {/* Metadata */}
-            <div className="bg-gray-50 p-4 rounded-lg grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-bg-input p-4 rounded-lg grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-semibold text-gray-600 block">תאריך שמירה:</span>
-                <span>{formatDate(point.createdAt)}</span>
+                <span className="font-semibold text-accent-blue block">תאריך שמירה:</span>
+                <span className="text-text-primary">{formatDate(point.createdAt)}</span>
               </div>
               <div>
-                <span className="font-semibold text-gray-600 block">מטפל:</span>
-                <span>{therapistName}</span>
+                <span className="font-semibold text-accent-blue block">מטפל:</span>
+                <span className="text-text-primary">{therapistName}</span>
               </div>
             </div>
 
             {/* Details */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">סוג גירוי</label>
-                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                <label className="block text-sm font-medium text-gray-400 mb-1">תיאור תוכנית טיפול</label>
+                <div className="p-2 bg-bg-input rounded-lg border border-border-subtle text-text-primary">
                   {formData.stimulationType === 'massage' ? 'עיסוי (Massage)' :
-                    formData.stimulationType === 'ems' ? 'EMS' :
-                      formData.stimulationType === 'tens' ? 'TENS' :
+                    formData.stimulationType === 'ems' ? 'גירוי שריר (EMS)' :
+                      formData.stimulationType === 'tens' ? 'גירוי עצבי (TENS)' :
                         formData.stimulationType || '-'}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">תדירות</label>
-                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                <label className="block text-sm font-medium text-gray-400 mb-1">תדירות</label>
+                <div className="p-2 bg-bg-input rounded-lg border border-border-subtle text-text-primary">
                   {formData.frequency || '-'}
                 </div>
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-600 mb-1">מרחק מקצה הגדם</label>
-                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                <label className="block text-sm font-medium text-gray-400 mb-1">מרחק מקצה הגדם</label>
+                <div className="p-2 bg-bg-input rounded-lg border border-border-subtle text-text-primary">
                   {formData.distanceFromStump ? `${formData.distanceFromStump} ס"מ` : '-'}
                 </div>
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-600 mb-1">תוכנית</label>
-                <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                <label className="block text-sm font-medium text-gray-400 mb-1">תוכנית</label>
+                <div className="p-2 bg-bg-input rounded-lg border border-border-subtle text-text-primary">
                   {formData.program || '-'}
                 </div>
               </div>
@@ -160,8 +160,8 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
 
             {/* Sensation */}
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">תיאור התחושה</label>
-              <div className="p-3 bg-gray-50 rounded border border-gray-200 min-h-[80px] whitespace-pre-wrap">
+              <label className="block text-sm font-medium text-gray-400 mb-1">תיאור התחושה</label>
+              <div className="p-3 bg-bg-input rounded-lg border border-border-subtle min-h-[80px] whitespace-pre-wrap text-text-primary">
                 {formData.sensation || 'אין תיאור'}
               </div>
             </div>
@@ -169,11 +169,11 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
             {/* Image Grid */}
             {(point.imageUrls?.length || 0) > 0 || point.imageUrl ? (
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">תמונות מצורפות</label>
+                <label className="block text-sm font-medium text-gray-400 mb-2">תמונות מצורפות</label>
                 <div className="grid grid-cols-3 gap-2">
                   {/* Legacy single image */}
                   {point.imageUrl && (
-                    <div className="relative aspect-square border rounded overflow-hidden group">
+                    <div className="relative aspect-square border border-border-subtle rounded-lg overflow-hidden group">
                       <img
                         src={point.imageUrl}
                         alt="Point"
@@ -188,7 +188,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                             e.stopPropagation();
                             if (point.imageUrl) handleDeleteClick(point.imageUrl, true);
                           }}
-                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 bg-error text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                           title="מחק תמונה"
                         >
                           <Trash2 size={14} />
@@ -198,7 +198,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                   )}
                   {/* New multiple images */}
                   {point.imageUrls?.map((url, index) => (
-                    <div key={url} className="relative aspect-square border rounded overflow-hidden group">
+                    <div key={url} className="relative aspect-square border border-border-subtle rounded-lg overflow-hidden group">
                       <img
                         src={url}
                         alt={`Point ${index + 1}`}
@@ -213,7 +213,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                             e.stopPropagation();
                             handleDeleteClick(url, false);
                           }}
-                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 bg-error text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                           title="מחק תמונה"
                         >
                           <Trash2 size={14} />
@@ -226,10 +226,10 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
             ) : null}
 
             {/* Action */}
-            <div className="flex justify-end pt-4 border-t">
+            <div className="flex justify-end pt-4 border-t border-border-subtle">
               <button
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium px-4 py-2 rounded hover:bg-blue-50 transition-colors"
+                className="flex items-center gap-2 text-accent-blue hover:text-blue-400 font-medium px-4 py-2 rounded-lg hover:bg-bg-input transition-colors"
               >
                 <Edit size={18} />
                 ערוך פרטים
@@ -239,20 +239,20 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
 
           {/* Delete Confirmation Modal */}
           {imageToDelete && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
-              <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
-                <h4 className="text-lg font-bold mb-4">מחיקת תמונה</h4>
-                <p className="mb-6 text-gray-600">האם אתה בטוח שברצונך למחוק את התמונה?</p>
+            <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50 rounded-lg">
+              <div className="bg-bg-secondary p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 border border-border-subtle">
+                <h4 className="text-lg font-bold mb-4 text-error">מחיקת תמונה</h4>
+                <p className="mb-6 text-text-primary">האם אתה בטוח שברצונך למחוק את התמונה?</p>
                 <div className="flex gap-3">
                   <button
                     onClick={confirmDeleteImage}
-                    className="flex-1 bg-red-500 text-white py-2 rounded hover:bg-red-600"
+                    className="flex-1 bg-error text-white py-2 rounded-lg hover:bg-red-600 transition"
                   >
                     מחק
                   </button>
                   <button
                     onClick={() => setImageToDelete(null)}
-                    className="flex-1 bg-gray-300 text-gray-800 py-2 rounded hover:bg-gray-400"
+                    className="flex-1 bg-bg-input text-text-primary py-2 rounded-lg hover:bg-gray-600 transition"
                   >
                     ביטול
                   </button>
@@ -266,17 +266,17 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4 relative">
-        <h3 className="text-xl font-bold mb-4">תיאור נקודה</h3>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" dir="rtl">
+      <div className="bg-bg-secondary rounded-xl p-6 max-w-2xl w-full m-4 relative border border-border-subtle text-text-primary">
+        <h3 className="text-xl font-bold mb-4 text-text-primary">תיאור נקודה</h3>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">סוג גירוי</label>
+            <label className="block text-sm font-medium mb-1 text-gray-400">סוג גירוי</label>
             <select
               value={formData.stimulationType}
               onChange={(e) => setFormData({ ...formData, stimulationType: e.target.value })}
-              className="w-full p-2 border rounded"
+              className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary focus:ring-2 focus:ring-accent-blue outline-none"
             >
               <option value="">בחר סוג</option>
               <option value="massage">עיסוי (Massage)</option>
@@ -286,42 +286,42 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">תוכנית</label>
+            <label className="block text-sm font-medium mb-1 text-gray-400">תוכנית</label>
             <input
               type="text"
               value={formData.program}
               onChange={(e) => setFormData({ ...formData, program: e.target.value })}
-              className="w-full p-2 border rounded"
+              className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">תדירות</label>
+            <label className="block text-sm font-medium mb-1 text-gray-400">תדירות</label>
             <input
               type="text"
               value={formData.frequency}
               onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-              className="w-full p-2 border rounded"
+              className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">מרחק מקצה הגדם (ס"מ)</label>
+            <label className="block text-sm font-medium mb-1 text-gray-400">מרחק מקצה הגדם (ס"מ)</label>
             <input
               type="number"
               value={formData.distanceFromStump}
               onChange={(e) => setFormData({ ...formData, distanceFromStump: e.target.value })}
-              className="w-full p-2 border rounded"
+              className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none"
               placeholder="0"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">תיאור התחושה</label>
+            <label className="block text-sm font-medium mb-1 text-gray-400">תיאור התחושה</label>
             <textarea
               value={formData.sensation}
               onChange={(e) => setFormData({ ...formData, sensation: e.target.value })}
-              className="w-full p-2 border rounded h-32"
+              className="w-full p-2 bg-bg-input border-none rounded-lg h-32 text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none"
               placeholder="היכן באיבר הפנטום הורגשה התחושה? איך הרגישה?"
             ></textarea>
           </div>
@@ -329,11 +329,11 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
           {/* Image Grid (Edit Mode) */}
           {(point.imageUrls?.length || 0) > 0 || point.imageUrl ? (
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-2">תמונות מצורפות</label>
+              <label className="block text-sm font-medium text-gray-400 mb-2">תמונות מצורפות</label>
               <div className="grid grid-cols-3 gap-2">
                 {/* Legacy single image */}
                 {point.imageUrl && (
-                  <div className="relative aspect-square border rounded overflow-hidden group">
+                  <div className="relative aspect-square border border-border-subtle rounded-lg overflow-hidden group">
                     <img
                       src={point.imageUrl}
                       alt="Point"
@@ -350,7 +350,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                         e.stopPropagation();
                         if (point.imageUrl) handleDeleteClick(point.imageUrl, true);
                       }}
-                      className="absolute top-1 right-1 bg-red-500 text-white p-2 rounded-full shadow-md z-10 hover:bg-red-600"
+                      className="absolute top-1 right-1 bg-error text-white p-2 rounded-full shadow-md z-10 hover:bg-red-600 transition"
                       title="מחק תמונה"
                       type="button"
                     >
@@ -360,7 +360,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                 )}
                 {/* New multiple images */}
                 {point.imageUrls?.map((url, index) => (
-                  <div key={url} className="relative aspect-square border rounded overflow-hidden group">
+                  <div key={url} className="relative aspect-square border border-border-subtle rounded-lg overflow-hidden group">
                     <img
                       src={url}
                       alt={`Point ${index + 1}`}
@@ -377,7 +377,7 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                         e.stopPropagation();
                         handleDeleteClick(url, false);
                       }}
-                      className="absolute top-1 right-1 bg-red-500 text-white p-2 rounded-full shadow-md z-10 hover:bg-red-600"
+                      className="absolute top-1 right-1 bg-error text-white p-2 rounded-full shadow-md z-10 hover:bg-red-600 transition"
                       title="מחק תמונה"
                       type="button"
                     >
@@ -391,35 +391,35 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
 
           <div className="flex gap-3">
             <button
-              onClick={handleSave}
-              className="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
-            >
-              שמור
-            </button>
-            <button
               onClick={onClose} // Use onClose prop
-              className="flex-1 bg-gray-300 py-2 rounded hover:bg-gray-400"
+              className="flex-1 bg-bg-input text-text-primary py-2 rounded-lg hover:bg-gray-600 transition"
             >
               ביטול
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex-1 bg-accent-blue text-white py-2 rounded-lg hover:bg-blue-600 transition"
+            >
+              שמור
             </button>
           </div>
 
           {/* Delete Confirmation Modal (Edit Mode) */}
           {imageToDelete && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
-              <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
-                <h4 className="text-lg font-bold mb-4">מחיקת תמונה</h4>
-                <p className="mb-6 text-gray-600">האם אתה בטוח שברצונך למחוק את התמונה?</p>
+            <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50 rounded-lg">
+              <div className="bg-bg-secondary p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 border border-border-subtle">
+                <h4 className="text-lg font-bold mb-4 text-error">מחיקת תמונה</h4>
+                <p className="mb-6 text-text-primary">האם אתה בטוח שברצונך למחוק את התמונה?</p>
                 <div className="flex gap-3">
                   <button
                     onClick={confirmDeleteImage}
-                    className="flex-1 bg-red-500 text-white py-2 rounded hover:bg-red-600"
+                    className="flex-1 bg-error text-white py-2 rounded-lg hover:bg-red-600 transition"
                   >
                     מחק
                   </button>
                   <button
                     onClick={() => setImageToDelete(null)}
-                    className="flex-1 bg-gray-300 text-gray-800 py-2 rounded hover:bg-gray-400"
+                    className="flex-1 bg-bg-input text-text-primary py-2 rounded-lg hover:bg-gray-600 transition"
                   >
                     ביטול
                   </button>
