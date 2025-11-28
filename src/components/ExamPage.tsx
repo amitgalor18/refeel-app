@@ -1,19 +1,11 @@
-import React, { useRef, useState } from 'react';
-import {
-  Camera,
-  Save,
-  Trash2,
-  Edit,
-  Image as ImageIcon,
-  CheckCircle,
-  ChevronDown,
-  Info
-} from 'lucide-react';
-import type { ExamData, PointData } from '../firebaseUtils';
-import { createPoint, updatePoint, deletePoint } from '../firebaseUtils';
+import React, { useState, useRef } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { BiSolidCamera, BiSolidSave, BiSolidCheckCircle, BiSolidImage, BiSolidInfoCircle, BiSolidTrash } from 'react-icons/bi';
 import ModelViewer from './ModelViewer';
 import CameraModal from './CameraModal';
 import DescriptionModal from './DescriptionModal';
+import type { PointData, ExamData } from '../firebaseUtils';
+import { updatePoint, deletePoint, createPoint } from '../firebaseUtils';
 
 interface ExamPageProps {
   examData: ExamData | null;
@@ -121,7 +113,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
         id: `temp-${Date.now()}`, // Temporary ID
         stumpPosition: position,
         limbPosition: null,
-        stimulationType: '',
+        stimulationType: 'tens',
         program: '',
         frequency: '',
         sensation: '',
@@ -317,22 +309,13 @@ const ExamPage: React.FC<ExamPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4" dir="rtl">
+    <div className="min-h-screen bg-bg-primary p-4" dir="rtl">
       <div className="max-w-7xl mx-auto">
-        {/* Banner */}
-        <div className="bg-white rounded-lg shadow p-4 mb-4 flex justify-center">
-          <img
-            src="/logo_banner.png"
-            alt="ReFeel Banner"
-            className="h-16 object-contain"
-          />
-        </div>
-
-        {/* Header Removed - Moved to TopBar */}
+        {/* Banner Removed */}
 
         {/* Instruction with hint about uncommitted point */}
-        <div className="bg-blue-100 border-2 border-blue-300 rounded-lg p-3 mb-4 text-center">
-          <p className="text-lg font-semibold text-blue-800">
+        <div className="bg-bg-secondary border border-accent-blue/30 rounded-lg p-3 mb-4 text-center">
+          <p className="text-lg font-semibold text-accent-blue">
             {hasUncommittedPoint()
               ? 'נקודה כחולה טרם נשמרה - לחץ על האיבר השלם למיפוי, או לחץ "שמירה" להוספת פרטים'
               : 'בחרו נקודה על הגדם'}
@@ -342,9 +325,9 @@ const ExamPage: React.FC<ExamPageProps> = ({
         {/* 3D Models */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-4">
           {/* Stump Model */}
-          <div className="bg-white rounded-lg shadow p-2 md:p-4">
-            <h3 className="text-lg font-semibold mb-2 text-center">גדם</h3>
-            <div ref={stumpViewerRef} className="w-full h-96 border rounded">
+          <div className="bg-bg-secondary rounded-xl shadow p-2 md:p-4 border border-border-subtle">
+            <h3 className="text-xl font-bold mb-4 text-center text-text-primary py-2">גדם</h3>
+            <div ref={stumpViewerRef} className="w-full h-96 border border-border-subtle rounded bg-bg-primary">
               <ModelViewer
                 modelFile={stumpFile}
                 visualPoints={getVisualPoints(false)}
@@ -354,23 +337,26 @@ const ExamPage: React.FC<ExamPageProps> = ({
           </div>
 
           {/* --- COLLAPSIBLE Full Limb Model --- */}
-          <div className="bg-white rounded-lg shadow p-2 md:p-4">
+          <div className="bg-bg-secondary rounded-xl shadow p-2 md:p-4 border border-border-subtle">
             {/* Clickable Header */}
             <div
-              className="flex justify-between items-center mb-2 cursor-pointer"
+              className="flex justify-between items-center mb-2 cursor-pointer py-2"
               onClick={() => setIsLimbViewOpen(!isLimbViewOpen)}
             >
-              <h3 className="text-lg font-semibold text-center">איבר פנטום</h3>
-              <ChevronDown
-                size={20}
-                className={`transition-transform duration-300 ${isLimbViewOpen ? 'rotate-180' : ''}`}
-              />
+              <div className="flex-1"></div>
+              <h3 className="text-xl font-bold text-center text-text-primary">איבר פנטום</h3>
+              <div className="flex-1 flex justify-end">
+                <ChevronDown
+                  size={24}
+                  className={`transition-transform duration-300 text-text-primary ${isLimbViewOpen ? 'rotate-180' : ''}`}
+                />
+              </div>
             </div>
 
             {/* Collapsible Content */}
             <div
               ref={fullLimbViewerRef}
-              className={`w-full h-96 border rounded transition-all duration-300 ease-in-out overflow-hidden ${isLimbViewOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+              className={`w-full h-96 border border-border-subtle rounded bg-bg-primary transition-all duration-300 ease-in-out overflow-hidden ${isLimbViewOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                 }`}
             >
               <ModelViewer
@@ -393,23 +379,23 @@ const ExamPage: React.FC<ExamPageProps> = ({
 
         {/* Point Actions */}
         {selectedPoint !== null && (
-          <div className="bg-white rounded-lg shadow p-4 mb-4">
-            <h3 className="text-lg font-semibold mb-3">
+          <div className="bg-bg-secondary rounded-xl shadow p-4 mb-4 border border-border-subtle">
+            <h3 className="text-lg font-semibold mb-3 text-text-primary">
               פעולות לנקודה נבחרת {selectedPoint + 1}
               {getPointVisualState(selectedPoint).isUncommitted && (
-                <span className="text-blue-600 text-sm mr-2">(טרם נשמרה)</span>
+                <span className="text-accent-blue text-sm mr-2">(טרם נשמרה)</span>
               )}
             </h3>
             <div className="flex gap-3">
               <button
                 disabled={((points[selectedPoint].imageUrls?.length || 0) + (points[selectedPoint].imageUrl ? 1 : 0)) >= 5}
                 onClick={() => setShowCameraModal(true)}
-                className={`flex-1 py-2 rounded flex items-center justify-center gap-2 ${((points[selectedPoint].imageUrls?.length || 0) + (points[selectedPoint].imageUrl ? 1 : 0)) >= 5
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-gray-500 text-white hover:bg-gray-600'
+                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 transition ${((points[selectedPoint].imageUrls?.length || 0) + (points[selectedPoint].imageUrl ? 1 : 0)) >= 5
+                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  : 'bg-bg-input text-text-primary hover:bg-gray-600'
                   }`}
               >
-                <Camera size={18} />
+                <BiSolidCamera size={18} />
                 צילום
               </button>
               <button
@@ -417,9 +403,9 @@ const ExamPage: React.FC<ExamPageProps> = ({
                   setDescriptionModalViewMode(false); // Edit mode
                   setShowDescriptionModal(true);
                 }}
-                className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 flex items-center justify-center gap-2"
+                className="flex-1 bg-accent-blue text-white py-2 rounded-lg hover:bg-blue-600 transition flex items-center justify-center gap-2"
               >
-                <Save size={18} />
+                <BiSolidSave size={18} />
                 שמירה
               </button>
             </div>
@@ -427,14 +413,13 @@ const ExamPage: React.FC<ExamPageProps> = ({
         )}
 
         {/* Points Table */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-3">נקודות שנבחרו ({points.length}/10)</h3>
+        <div className="bg-bg-secondary rounded-xl shadow p-4 border border-border-subtle">
+          <h3 className="text-lg font-semibold mb-3 text-text-primary">נקודות שנבחרו ({points.length}/10)</h3>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-100">
+            <table className="w-full text-text-primary border-separate border-spacing-y-2">
+              <thead className="text-text-primary">
                 <tr>
                   <th className="p-2 text-right">#</th>
-                  {/* Removed Date and Status columns as requested */}
                   <th className="p-2 text-right">תיאור</th>
                   <th className="p-2 text-right">מיפוי</th>
                   <th className="p-2 text-right">תמונה</th>
@@ -444,73 +429,71 @@ const ExamPage: React.FC<ExamPageProps> = ({
               <tbody>
                 {points.map((point, idx) => {
                   const { isUncommitted, isSelected } = getPointVisualState(idx);
-                  const rowClass = isSelected
-                    ? 'bg-orange-50 border-l-4 border-orange-500'
-                    : isUncommitted
-                      ? 'bg-blue-50 border-l-4 border-blue-500'
-                      : 'border-t';
-
                   const imageCount = (point.imageUrls?.length || 0) + (point.imageUrl ? 1 : 0);
 
                   return (
-                    <tr key={point.id} className={rowClass}>
-                      <td className="p-2">{idx + 1}</td>
-                      {/* Removed Date and Status cells */}
-                      <td className="p-2">{point.sensation || '-'}</td>
-                      <td className="p-2">
+                    <tr
+                      key={point.id}
+                      onClick={() => setSelectedPoint(idx)}
+                      className={`cursor-pointer transition-all duration-200 rounded-lg shadow-sm ${isSelected
+                        ? 'bg-accent-blue/20'
+                        : isUncommitted
+                          ? 'bg-blue-900/30'
+                          : 'bg-bg-input hover:bg-bg-input/80'
+                        }`}
+                    >
+                      <td className="p-3 rounded-r-lg font-medium">{idx + 1}</td>
+                      <td className="p-3 max-w-[150px] truncate" title={point.sensation || ''}>
+                        {point.sensation || '-'}
+                      </td>
+                      <td className="p-3">
                         {point.limbPosition ? (
-                          <CheckCircle size={18} className="text-green-500" />
+                          <BiSolidCheckCircle size={18} className="text-white" />
                         ) : (
                           '-'
                         )}
                       </td>
-                      <td className="p-2">
+                      <td className="p-3">
                         {imageCount > 0 ? (
                           <button
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                            onClick={() => {
-                              // Open first image for now, or all in new tabs
+                            className="flex items-center gap-1 text-white hover:text-gray-300"
+                            onClick={(e) => {
+                              e.stopPropagation();
                               const urls = [...(point.imageUrls || [])];
                               if (point.imageUrl) urls.unshift(point.imageUrl);
                               urls.forEach(url => window.open(url, '_blank'));
                             }}
                           >
-                            <ImageIcon size={18} />
+                            <BiSolidImage size={18} />
                             {imageCount > 1 && <span className="text-xs font-bold">{imageCount}</span>}
                           </button>
                         ) : (
                           '-'
                         )}
                       </td>
-                      <td className="p-2">
+                      <td className="p-3 rounded-l-lg">
                         <div className="flex gap-3 justify-end">
                           <button
-                            onClick={() => setSelectedPoint(idx)}
-                            title="בחר"
-                            className={`text-sm ${isSelected
-                              ? 'text-orange-600'
-                              : 'text-gray-400 hover:text-orange-600'
-                              }`}
-                          >
-                            <Edit size={18} />
-                          </button>
-                          <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedPoint(idx);
                               setDescriptionModalViewMode(true); // View mode
                               setShowDescriptionModal(true);
                             }}
                             title="תיאור"
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-white hover:text-gray-300 p-1 rounded hover:bg-white/5 transition"
                           >
-                            <Info size={18} />
+                            <BiSolidInfoCircle size={18} />
                           </button>
                           <button
-                            onClick={() => handleDeletePoint(idx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeletePoint(idx);
+                            }}
                             title="מחק"
-                            className="text-red-600 hover:text-red-800"
+                            className="text-error hover:text-red-400 p-1 rounded hover:bg-white/5 transition"
                           >
-                            <Trash2 size={18} />
+                            <BiSolidTrash size={18} />
                           </button>
                         </div>
                       </td>
@@ -520,73 +503,79 @@ const ExamPage: React.FC<ExamPageProps> = ({
               </tbody>
             </table>
             {points.length === 0 && (
-              <p className="text-center text-gray-500 py-8">לא נבחרו נקודות עדיין</p>
+              <p className="text-center text-gray-400 py-8">לא נבחרו נקודות עדיין</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Modals */}
-      {deleteConfirmationIndex !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full m-4">
-            <h3 className="text-xl font-bold mb-4">מחיקת נקודה</h3>
-            <p className="mb-6">האם אתה בטוח שברצונך למחוק את נקודה {deleteConfirmationIndex + 1}?</p>
-            <div className="flex gap-3">
-              <button
-                onClick={confirmDelete}
-                className="flex-1 bg-red-500 text-white py-2 rounded hover:bg-red-600"
-              >
-                מחק
-              </button>
-              <button
-                onClick={() => setDeleteConfirmationIndex(null)}
-                className="flex-1 bg-gray-300 py-2 rounded hover:bg-gray-400"
-              >
-                ביטול
-              </button>
+      {
+        deleteConfirmationIndex !== null && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div className="bg-bg-secondary rounded-xl p-6 max-w-sm w-full m-4 border border-border-subtle text-text-primary">
+              <h3 className="text-xl font-bold mb-4 text-error">מחיקת נקודה</h3>
+              <p className="mb-6">האם אתה בטוח שברצונך למחוק את נקודה {deleteConfirmationIndex + 1}?</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 bg-error text-white py-2 rounded-lg hover:bg-red-600 transition"
+                >
+                  מחק
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmationIndex(null)}
+                  className="flex-1 bg-bg-input text-text-primary py-2 rounded-lg hover:bg-gray-600 transition"
+                >
+                  ביטול
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {showDescriptionModal && selectedPoint !== null && (
-        <DescriptionModal
-          point={points[selectedPoint]}
-          examId={examData?.id || ''}
-          therapistName={examData?.therapistName || 'לא ידוע'}
-          initialViewMode={descriptionModalViewMode}
-          onClose={() => setShowDescriptionModal(false)}
-          onSave={handleSaveDescription}
-        />
-      )}
-      {showCameraModal && selectedPoint !== null && (
-        <CameraModal
-          point={points[selectedPoint]}
-          examId={examData?.id || ''}
-          onClose={() => setShowCameraModal(false)}
-          onSave={async (imageUrl) => {
-            const updatedPoints = [...points];
-            const point = updatedPoints[selectedPoint];
+      {
+        showDescriptionModal && selectedPoint !== null && (
+          <DescriptionModal
+            point={points[selectedPoint]}
+            examId={examData?.id || ''}
+            therapistName={examData?.therapistName || 'לא ידוע'}
+            initialViewMode={descriptionModalViewMode}
+            onClose={() => setShowDescriptionModal(false)}
+            onSave={handleSaveDescription}
+          />
+        )
+      }
+      {
+        showCameraModal && selectedPoint !== null && (
+          <CameraModal
+            point={points[selectedPoint]}
+            examId={examData?.id || ''}
+            onClose={() => setShowCameraModal(false)}
+            onSave={async (imageUrl) => {
+              const updatedPoints = [...points];
+              const point = updatedPoints[selectedPoint];
 
-            // Append new image URL
-            const currentImages = point.imageUrls || [];
-            const updatedPoint = {
-              ...point,
-              imageUrls: [...currentImages, imageUrl]
-            };
+              // Append new image URL
+              const currentImages = point.imageUrls || [];
+              const updatedPoint = {
+                ...point,
+                imageUrls: [...currentImages, imageUrl]
+              };
 
-            updatedPoints[selectedPoint] = updatedPoint;
+              updatedPoints[selectedPoint] = updatedPoint;
 
-            setPoints(updatedPoints);
-            setShowCameraModal(false);
+              setPoints(updatedPoints);
+              setShowCameraModal(false);
 
-            // Auto-save to Firebase
-            await handleCommitPoint(updatedPoint);
-          }}
-        />
-      )}
-    </div>
+              // Auto-save to Firebase
+              await handleCommitPoint(updatedPoint);
+            }}
+          />
+        )
+      }
+    </div >
   );
 };
 

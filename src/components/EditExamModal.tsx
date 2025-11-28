@@ -92,18 +92,18 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" dir="rtl">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
-                    <h2 className="text-xl font-bold">פרטי בדיקה</h2>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" dir="rtl">
+            <div className="bg-bg-secondary rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border-subtle text-text-primary">
+                <div className="p-4 border-b border-border-subtle flex justify-between items-center sticky top-0 bg-bg-secondary z-10">
+                    <h2 className="text-xl font-bold text-text-primary">פרטי בדיקה</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-text-primary transition">
                         <X size={24} />
                     </button>
                 </div>
 
                 <div className="p-6 space-y-6">
                     {/* Timestamps */}
-                    <div className="flex gap-6 text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+                    <div className="flex gap-6 text-sm text-gray-400 bg-bg-input p-3 rounded-lg">
                         <div className="flex items-center gap-2">
                             <Calendar size={16} />
                             <span>נוצר: {formatDate(examData.dateTime)}</span>
@@ -111,7 +111,7 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                         {examData.lastEdited && (
                             <div className="flex items-center gap-2">
                                 <Clock size={16} />
-                                <span>נערך לאחרונה: {formatDate(examData.lastEdited)}</span>
+                                <span className="text-accent-blue">נערך לאחרונה: {formatDate(examData.lastEdited)}</span>
                             </div>
                         )}
                     </div>
@@ -121,28 +121,28 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500 mb-1">שם המטופל</label>
-                                    <div className="text-lg font-medium">{examData.patientName}</div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">שם המטופל</label>
+                                    <div className="text-lg font-medium text-text-primary">{examData.patientName}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500 mb-1">מספר זהות</label>
-                                    <div className="text-lg font-medium">{examData.patientId}</div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">מספר זהות</label>
+                                    <div className="text-lg font-medium text-text-primary">{examData.patientId}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500 mb-1">איבר מושפע</label>
-                                    <div className="text-lg font-medium">{getLimbLabel(examData.limb)}</div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">איבר מושפע</label>
+                                    <div className="text-lg font-medium text-text-primary">{getLimbLabel(examData.limb)}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500 mb-1">מיקום הכריתה</label>
-                                    <div className="text-lg font-medium">{getLocationLabel(examData.location)}</div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">מיקום הכריתה</label>
+                                    <div className="text-lg font-medium text-text-primary">{getLocationLabel(examData.location)}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500 mb-1">שם המטפל</label>
-                                    <div className="text-lg font-medium">{examData.therapistName}</div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">שם המטפל</label>
+                                    <div className="text-lg font-medium text-text-primary">{examData.therapistName}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-500 mb-1">דגם מכשיר</label>
-                                    <div className="text-lg font-medium">{examData.deviceModel || '-'}</div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">דגם מכשיר</label>
+                                    <div className="text-lg font-medium text-text-primary">{examData.deviceModel || '-'}</div>
                                 </div>
                             </div>
                         </div>
@@ -151,12 +151,12 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                         <div className="space-y-4">
                             {/* Warning Banner */}
                             {showWarning && (
-                                <div className="bg-red-50 border-r-4 border-red-500 p-4 mb-4">
+                                <div className="bg-red-900/20 border-r-4 border-error p-4 mb-4 rounded-lg">
                                     <div className="flex items-start gap-3">
-                                        <AlertTriangle className="text-red-500 flex-shrink-0" />
+                                        <AlertTriangle className="text-error flex-shrink-0" />
                                         <div>
-                                            <h3 className="font-bold text-red-800">אזהרה: שינוי קריטי</h3>
-                                            <p className="text-sm text-red-700 mt-1">
+                                            <h3 className="font-bold text-error">אזהרה: שינוי קריטי</h3>
+                                            <p className="text-sm text-red-200 mt-1">
                                                 שינוי האיבר או מיקום הכריתה יגרום ל<strong>מחיקת כל {pointsCount} הנקודות</strong> שנשמרו בבדיקה זו, כיוון שהן לא יתאימו למודל החדש.
                                             </p>
                                             <div className="mt-3">
@@ -165,9 +165,9 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                                                         type="checkbox"
                                                         checked={confirmDelete}
                                                         onChange={(e) => setConfirmDelete(e.target.checked)}
-                                                        className="w-4 h-4 text-red-600 rounded focus:ring-red-500"
+                                                        className="w-4 h-4 text-error rounded focus:ring-error bg-bg-input border-border-subtle"
                                                     />
-                                                    <span className="text-sm font-medium text-red-800">
+                                                    <span className="text-sm font-medium text-red-200">
                                                         אני מאשר את מחיקת הנקודות לצורך עדכון הפרטים
                                                     </span>
                                                 </label>
@@ -179,27 +179,27 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">שם המטופל</label>
+                                    <label className="block text-sm font-medium mb-1 text-gray-400">שם המטופל</label>
                                     <input
                                         type="text"
                                         value={formData.patientName || ''}
                                         onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
-                                        className="w-full p-2 border rounded"
+                                        className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary focus:ring-2 focus:ring-accent-blue outline-none"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">מספר זהות</label>
+                                    <label className="block text-sm font-medium mb-1 text-gray-400">מספר זהות</label>
                                     <input
                                         type="text"
                                         value={formData.patientId || ''}
                                         onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
-                                        className="w-full p-2 border rounded"
+                                        className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary focus:ring-2 focus:ring-accent-blue outline-none"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">איבר מושפע</label>
+                                    <label className="block text-sm font-medium mb-1 text-gray-400">איבר מושפע</label>
                                     <select
                                         value={formData.limb || ''}
                                         onChange={(e) => {
@@ -210,7 +210,7 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                                                 location: '' // Reset location on limb change
                                             });
                                         }}
-                                        className="w-full p-2 border rounded"
+                                        className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary focus:ring-2 focus:ring-accent-blue outline-none"
                                     >
                                         <option value="leg-right">רגל ימין</option>
                                         <option value="leg-left">רגל שמאל</option>
@@ -220,11 +220,11 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">מיקום הכריתה</label>
+                                    <label className="block text-sm font-medium mb-1 text-gray-400">מיקום הכריתה</label>
                                     <select
                                         value={formData.location || ''}
                                         onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                        className="w-full p-2 border rounded"
+                                        className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary focus:ring-2 focus:ring-accent-blue outline-none"
                                     >
                                         <option value="" disabled>בחר מיקום</option>
                                         {formData.limb?.startsWith('leg') ? (
@@ -242,22 +242,22 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">שם המטפל</label>
+                                    <label className="block text-sm font-medium mb-1 text-gray-400">שם המטפל</label>
                                     <input
                                         type="text"
                                         value={formData.therapistName || ''}
                                         onChange={(e) => setFormData({ ...formData, therapistName: e.target.value })}
-                                        className="w-full p-2 border rounded"
+                                        className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary focus:ring-2 focus:ring-accent-blue outline-none"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">דגם מכשיר</label>
+                                    <label className="block text-sm font-medium mb-1 text-gray-400">דגם מכשיר</label>
                                     <input
                                         type="text"
                                         value={formData.deviceModel || ''}
                                         onChange={(e) => setFormData({ ...formData, deviceModel: e.target.value })}
-                                        className="w-full p-2 border rounded"
+                                        className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary focus:ring-2 focus:ring-accent-blue outline-none"
                                     />
                                 </div>
                             </div>
@@ -265,10 +265,10 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                     )}
                 </div>
 
-                <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
+                <div className="p-4 border-t border-border-subtle bg-bg-secondary flex justify-end gap-3 rounded-b-xl">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+                        className="px-4 py-2 text-text-primary bg-bg-input rounded-lg hover:bg-gray-600 transition"
                     >
                         {isEditing ? 'ביטול' : 'סגור'}
                     </button>
@@ -276,7 +276,7 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                     {!isEditing ? (
                         <button
                             onClick={() => setIsEditing(true)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+                            className="px-4 py-2 bg-accent-blue text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
                         >
                             <Edit2 size={16} />
                             ערוך פרטים
@@ -285,9 +285,9 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                         <button
                             onClick={handleSave}
                             disabled={showWarning && !confirmDelete}
-                            className={`px-4 py-2 text-white rounded transition ${showWarning && !confirmDelete
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-blue-600 hover:bg-blue-700'
+                            className={`px-4 py-2 text-white rounded-lg transition ${showWarning && !confirmDelete
+                                ? 'bg-gray-600 cursor-not-allowed'
+                                : 'bg-accent-blue hover:bg-blue-600'
                                 }`}
                         >
                             שמור שינויים

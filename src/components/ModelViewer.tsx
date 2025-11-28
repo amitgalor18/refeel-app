@@ -46,7 +46,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
 
     // Basic Three.js setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f0f0);
+    scene.background = new THREE.Color(0x374151); // Lighter dark background (gray-700)
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(
