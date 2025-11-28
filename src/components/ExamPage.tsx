@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { BiSolidCamera, BiSolidSave, BiSolidCheckCircle, BiSolidImage, BiSolidInfoCircle, BiSolidTrash } from 'react-icons/bi';
 import ModelViewer from './ModelViewer';

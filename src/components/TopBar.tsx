@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Menu, Info, Edit, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Menu, Info, Edit } from 'lucide-react';
 import type { ExamData } from '../firebaseUtils';
 
 interface TopBarProps {
