@@ -50,6 +50,7 @@ const ReFeel = () => {
   // Save All Handler
   const handleSaveAll = async () => {
     if (!examData?.id) return;
+    const currentExamId = examData.id; // Capture ID to ensure it's a string in the closure
 
     const unsavedPoints = points.filter(p =>
       (typeof p.id === 'string' && p.id.startsWith('temp-')) ||
@@ -75,16 +76,16 @@ const ReFeel = () => {
             x: Number(point.limbPosition.x),
             y: Number(point.limbPosition.y),
             z: Number(point.limbPosition.z)
-          } : null,
+          },
           order: point.order ?? (points.length + 1)
         };
 
         if (typeof id === 'string' && id.startsWith('temp-')) {
           // Create new
-          await createPoint(examData.id, cleanedData);
+          await createPoint(currentExamId, cleanedData);
         } else if (id) {
           // Update existing
-          await updatePoint(examData.id, id, cleanedData);
+          await updatePoint(currentExamId, id, cleanedData);
         }
       }));
 
