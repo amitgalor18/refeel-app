@@ -76,7 +76,7 @@ const ReFeel = () => {
             x: Number(point.limbPosition.x),
             y: Number(point.limbPosition.y),
             z: Number(point.limbPosition.z)
-          },
+          } : null,
           order: point.order ?? (points.length + 1)
         };
 
