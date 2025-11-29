@@ -48,6 +48,7 @@ export interface PointData {
   distanceFromStump?: string; // New field
   order?: number; // New field for ordering
   createdAt?: any; // Firestore Timestamp
+  hasUnsavedChanges?: boolean; // Local flag for UI state
 }
 
 // ============= EXAM FUNCTIONS =============
