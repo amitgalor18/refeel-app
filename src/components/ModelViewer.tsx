@@ -17,6 +17,7 @@ interface ModelViewerProps {
   visualPoints: VisualPoint[];
   onPointSelect?: ((position: { x: number; y: number; z: number }) => void) | null;
   showResetControls?: boolean;
+  children?: React.ReactNode;
 }
 
 const ModelViewer: React.FC<ModelViewerProps> = ({
@@ -24,6 +25,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
   visualPoints,
   onPointSelect,
   showResetControls = true,
+  children
 }) => {
   // We use an internal ref for the canvas to avoid clearing the buttons
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -46,7 +48,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
 
     // Basic Three.js setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f0f0);
+    scene.background = new THREE.Color(0x374151); // Lighter dark background (gray-700)
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(
@@ -325,6 +327,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
   return (
     <div className="relative w-full h-full">
       <div ref={canvasContainerRef} className="w-full h-full" />
+      {children}
       {showResetControls && (
         <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
           <button

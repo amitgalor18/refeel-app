@@ -96,14 +96,14 @@ const CameraModal: React.FC<CameraModalProps> = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full m-4">
-        <h3 className="text-xl font-bold mb-4">צילום</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" dir="rtl">
+      <div className="bg-bg-secondary rounded-xl p-6 max-w-2xl w-full m-4 border border-border-subtle shadow-2xl">
+        <h3 className="text-xl font-bold mb-4 text-accent-blue">צילום</h3>
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-64">
-            <Loader className="animate-spin text-blue-500" size={48} />
-            <p className="mt-4">מעלה תמונה...</p>
+            <Loader className="animate-spin text-accent-blue" size={48} />
+            <p className="mt-4 text-text-primary">מעלה תמונה...</p>
           </div>
         ) : !capturedImage ? (
           <div>
@@ -111,14 +111,14 @@ const CameraModal: React.FC<CameraModalProps> = ({
             <div className="flex gap-3">
               <button
                 onClick={capturePhoto}
-                className="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 flex items-center justify-center gap-2"
+                className="flex-1 bg-accent-blue text-white py-2 rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2 transition font-medium shadow-lg shadow-blue-500/20"
               >
                 <Camera size={20} />
                 צלם
               </button>
               <button
                 onClick={handleClose}
-                className="flex-1 bg-gray-300 py-2 rounded hover:bg-gray-400"
+                className="flex-1 bg-bg-input text-text-primary py-2 rounded-lg hover:bg-slate-600 transition font-medium"
               >
                 ביטול
               </button>
@@ -130,14 +130,14 @@ const CameraModal: React.FC<CameraModalProps> = ({
             <div className="flex gap-3">
               <button
                 onClick={savePhoto}
-                className="flex-1 bg-green-500 text-white py-2 rounded hover:bg-green-600 flex items-center justify-center gap-2"
+                className="flex-1 bg-success text-white py-2 rounded-lg hover:bg-green-500 flex items-center justify-center gap-2 transition font-medium shadow-lg shadow-green-500/20"
               >
                 <Save size={20} />
                 שמור תמונה
               </button>
               <button
                 onClick={() => setCapturedImage(null)}
-                className="flex-1 bg-gray-300 py-2 rounded hover:bg-gray-400"
+                className="flex-1 bg-bg-input text-text-primary py-2 rounded-lg hover:bg-slate-600 transition font-medium"
               >
                 צלם שוב
               </button>
