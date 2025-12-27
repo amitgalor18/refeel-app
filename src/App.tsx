@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { configError } from './firebase';
+import { useState, useEffect } from 'react';
+import { configError, auth } from './firebase';
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import ConfigError from './components/ConfigError';
 import type { ExamData, PointData } from './firebaseUtils';
 import { createPoint, updatePoint } from './firebaseUtils'; // Import firebase functions
@@ -12,10 +13,7 @@ import InfoModal from './components/InfoModal';
 import UnsavedChangesModal from './components/UnsavedChangesModal'; // Import new modal
 
 const ReFeel = () => {
-  if (configError) {
-    return <ConfigError />;
-  }
-
+  const [authLoading, setAuthLoading] = useState(!configError);
   const [currentPage, setCurrentPage] = useState('welcome');
   const [examData, setExamData] = useState<ExamData | null>(null);
   const [points, setPoints] = useState<PointData[]>([]);
@@ -31,6 +29,24 @@ const ReFeel = () => {
   const [showEditExamModal, setShowEditExamModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false); // New state
+
+  useEffect(() => {
+    if (configError) return;
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is signed in
+        setAuthLoading(false);
+      } else {
+        // User is signed out, try to sign in anonymously
+        signInAnonymously(auth).catch((error) => {
+          console.error("Failed to sign in anonymously:", error);
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Navigation Handler
   const handleNavigate = (page: string) => {
@@ -97,6 +113,18 @@ const ReFeel = () => {
       alert('שגיאה בשמירת הנקודות. אנא נסה שוב.');
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (configError) {
+    return <ConfigError />;
+  }
 
   return (
     <div className="relative min-h-screen bg-gray-50">
