@@ -2,6 +2,7 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getAuth, type Auth } from "firebase/auth";
+import { signInAnonymously } from "firebase/auth";
 
 // Your web app's Firebase configuration
 // !! Get this from your Firebase project settings !!
@@ -41,6 +42,7 @@ export let app: FirebaseApp;
 export let db: Firestore;
 export let auth: Auth;
 
+
 if (!configError) {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
@@ -52,3 +54,8 @@ if (!configError) {
   db = {} as Firestore;
   auth = {} as Auth;
 }
+
+// Automatically sign in anonymously
+signInAnonymously(auth).catch((error) => {
+  console.error("Failed to sign in anonymously:", error);
+});

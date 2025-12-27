@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Plus, Minus } from 'lucide-react';
 import { BiSolidCamera, BiSolidSave, BiSolidCheckCircle, BiSolidImage, BiSolidInfoCircle, BiSolidTrash } from 'react-icons/bi';
 import ModelViewer from './ModelViewer';
 import CameraModal from './CameraModal';
@@ -66,6 +66,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
   const fullLimbViewerRef = useRef<HTMLDivElement>(null!);
   const [isLimbViewOpen, setIsLimbViewOpen] = useState(true);
   const [descriptionModalViewMode, setDescriptionModalViewMode] = useState(false); // NEW: Control initial view mode
+  const [isAddPointMode, setIsAddPointMode] = useState(false); // NEW: Toggle for adding points
 
   const { stumpFile, fullFile } = getModelFilenames(examData);
 
@@ -74,9 +75,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
     return points.findIndex(p => typeof p.id === 'string' && p.id.startsWith('temp-'));
   };
 
-  const hasUncommittedPoint = () => {
-    return getUncommittedPointIndex() !== -1;
-  };
+
 
   const getPointVisualState = (index: number) => {
     const point = points[index];
@@ -90,42 +89,74 @@ const ExamPage: React.FC<ExamPageProps> = ({
 
 
 
-  // NEW: Handle stump clicks - move uncommitted or create new
+  // UPDATED: Handle stump clicks - select closest or create new
   const handleStumpClick = (position: { x: number; y: number; z: number }) => {
-    const uncommittedIndex = getUncommittedPointIndex();
+    if (isAddPointMode) {
+      const uncommittedIndex = getUncommittedPointIndex();
 
-    if (uncommittedIndex !== -1) {
-      // Move the uncommitted point
-      console.log('Moving uncommitted point to new position');
-      const updatedPoints = [...points];
-      updatedPoints[uncommittedIndex].stumpPosition = position;
-      setPoints(updatedPoints);
-      setSelectedPoint(uncommittedIndex);
-    } else {
-      // Create new uncommitted point
-      if (points.length >= 10) {
-        alert('הגעת למגבלת 10 נקודות');
-        return;
+      if (uncommittedIndex !== -1) {
+        // Move the uncommitted point
+        console.log('Moving uncommitted point to new position');
+        const updatedPoints = [...points];
+        updatedPoints[uncommittedIndex] = {
+          ...updatedPoints[uncommittedIndex],
+          stumpPosition: position,
+          hasUnsavedChanges: true // Mark as modified
+        };
+        setPoints(updatedPoints);
+        setSelectedPoint(uncommittedIndex);
+      } else {
+        // Create new uncommitted point
+        if (points.length >= 10) {
+          alert('הגעת למגבלת 10 נקודות');
+          return;
+        }
+
+        console.log('Creating new uncommitted point');
+        const newPoint: PointData = {
+          id: `temp-${Date.now()}`, // Temporary ID
+          stumpPosition: position,
+          limbPosition: null,
+          stimulationType: 'tens',
+          program: '',
+          frequency: '',
+          sensation: '',
+          imageUrl: null,
+          imageUrls: [],
+          distanceFromStump: '',
+          order: points.length + 1, // Assign order
+          hasUnsavedChanges: true // Mark as modified
+        };
+        setPoints([...points, newPoint]);
+        setSelectedPoint(points.length);
       }
+      // Note: We stay in add mode to allow adjusting the position
+    } else {
+      // Select closest point logic
+      let closestIndex = -1;
+      let minDistance = Infinity;
+      const threshold = 3.0; // Increased to 3.0 for much easier selection
 
-      console.log('Creating new uncommitted point');
-      const newPoint: PointData = {
-        id: `temp-${Date.now()}`, // Temporary ID
-        stumpPosition: position,
-        limbPosition: null,
-        stimulationType: 'tens',
-        program: '',
-        frequency: '',
-        sensation: '',
-        imageUrl: null,
-        imageUrls: [],
-        distanceFromStump: '',
-        order: points.length + 1 // Assign order
-      };
-      setPoints([...points, newPoint]);
-      setSelectedPoint(points.length);
+      points.forEach((point, index) => {
+        if (!point.stumpPosition) return;
+        const dx = point.stumpPosition.x - position.x;
+        const dy = point.stumpPosition.y - position.y;
+        const dz = point.stumpPosition.z - position.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestIndex = index;
+        }
+      });
+
+      if (closestIndex !== -1 && minDistance < threshold) {
+        console.log('Selected closest point:', closestIndex);
+        setSelectedPoint(closestIndex);
+      } else {
+        console.log('No point close enough to select');
+      }
     }
-    // Implicit mapping mode - no explicit toggle needed
   };
 
   // UPDATED: Commit handler - saves point to Firebase
@@ -136,7 +167,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
     }
 
     const pointToSave = pointToSaveOverride || points[selectedPoint];
-    const { id, examId, ...saveData } = pointToSave;
+    const { id, examId, hasUnsavedChanges, ...saveData } = pointToSave; // Exclude local flag
 
     if (!pointToSave.stumpPosition) {
       alert('שגיאה: מיקום נקודה חסר. נסה ללחוץ שוב.');
@@ -177,7 +208,8 @@ const ExamPage: React.FC<ExamPageProps> = ({
             updatedPoints[indexToUpdate] = {
               ...updatedPoints[indexToUpdate],
               id: result.id,
-              createdAt: result.createdAt // Update createdAt immediately
+              createdAt: result.createdAt, // Update createdAt immediately
+              hasUnsavedChanges: false // Clear flag
             };
           }
           return updatedPoints;
@@ -191,6 +223,19 @@ const ExamPage: React.FC<ExamPageProps> = ({
         console.log('📝 Updating existing point...');
         await updatePoint(examData.id, id, cleanedData);
 
+        // Update local state to clear flag
+        setPoints((currentPoints) => {
+          const updatedPoints = [...currentPoints];
+          const indexToUpdate = updatedPoints.findIndex(p => p.id === id);
+          if (indexToUpdate !== -1) {
+            updatedPoints[indexToUpdate] = {
+              ...updatedPoints[indexToUpdate],
+              hasUnsavedChanges: false
+            };
+          }
+          return updatedPoints;
+        });
+
         console.log('Point updated successfully!');
         setSelectedPoint(null);
       }
@@ -198,6 +243,43 @@ const ExamPage: React.FC<ExamPageProps> = ({
       console.error('❌ Error saving point:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert(`שגיאה בשמירת נקודה: ${errorMessage}`);
+    }
+  };
+
+  // NEW: Handle limb clicks - map point or select closest mapped
+  const handleLimbClick = (position: { x: number; y: number; z: number }) => {
+    // If a point is selected and we want to map it (e.g. it has no mapping yet)
+    if (selectedPoint !== null && !points[selectedPoint].limbPosition) {
+      const updatedPoints = [...points];
+      updatedPoints[selectedPoint] = {
+        ...updatedPoints[selectedPoint],
+        limbPosition: position,
+        hasUnsavedChanges: true // Mark as modified
+      };
+      setPoints(updatedPoints);
+    } else {
+      // Select closest mapped point
+      let closestIndex = -1;
+      let minDistance = Infinity;
+      const threshold = 5.0; // Increased to 5.0 for very easy selection
+
+      points.forEach((point, index) => {
+        if (!point.limbPosition) return;
+        const dx = point.limbPosition.x - position.x;
+        const dy = point.limbPosition.y - position.y;
+        const dz = point.limbPosition.z - position.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestIndex = index;
+        }
+      });
+
+      if (closestIndex !== -1 && minDistance < threshold) {
+        console.log('Selected closest mapped point:', closestIndex);
+        setSelectedPoint(closestIndex);
+      }
     }
   };
 
@@ -316,28 +398,48 @@ const ExamPage: React.FC<ExamPageProps> = ({
         {/* Instruction with hint about uncommitted point */}
         <div className="bg-bg-secondary border border-accent-blue/30 rounded-lg p-3 mb-4 text-center">
           <p className="text-lg font-semibold text-accent-blue">
-            {hasUncommittedPoint()
-              ? 'נקודה כחולה טרם נשמרה - לחץ על האיבר השלם למיפוי, או לחץ "שמירה" להוספת פרטים'
-              : 'בחרו נקודה על הגדם'}
+            {isAddPointMode
+              ? 'בחר נקודה על הגדם'
+              : selectedPoint !== null && !points[selectedPoint].limbPosition
+                ? 'נקודה כחולה טרם נשמרה - לחץ על האיבר השלם למיפוי, או לחץ "שמירה" להוספת פרטים'
+                : 'לחץ על נקודה קיימת לבחירה, או לחץ על ה- + להוספת נקודה חדשה'}
           </p>
         </div>
 
         {/* 3D Models */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-4">
           {/* Stump Model */}
-          <div className="bg-bg-secondary rounded-xl shadow p-2 md:p-4 border border-border-subtle">
+          <div className="bg-bg-secondary rounded-xl shadow p-2 md:p-4 border border-border-subtle relative">
             <h3 className="text-xl font-bold mb-4 text-center text-text-primary py-2">גדם</h3>
-            <div ref={stumpViewerRef} className="w-full h-96 border border-border-subtle rounded bg-bg-primary">
+            <div ref={stumpViewerRef} className="w-full h-96 border border-border-subtle rounded bg-bg-primary relative">
               <ModelViewer
                 modelFile={stumpFile}
                 visualPoints={getVisualPoints(false)}
                 onPointSelect={handleStumpClick}
-              />
+              >
+                {/* Add Point Toggle Button */}
+                <div className="absolute top-24 right-2 z-10">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsAddPointMode(!isAddPointMode);
+                      if (!isAddPointMode) setSelectedPoint(null); // Clear selection when entering add mode
+                    }}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-colors ${isAddPointMode
+                      ? 'bg-accent-blue text-white'
+                      : 'bg-white/80 text-gray-600 hover:bg-white'
+                      }`}
+                    title={isAddPointMode ? 'בטל הוספת נקודה' : 'הוסף נקודה חדשה'}
+                  >
+                    <Plus size={20} className={isAddPointMode ? 'rotate-45 transition-transform' : 'transition-transform'} />
+                  </button>
+                </div>
+              </ModelViewer>
             </div>
           </div>
 
           {/* --- COLLAPSIBLE Full Limb Model --- */}
-          <div className="bg-bg-secondary rounded-xl shadow p-2 md:p-4 border border-border-subtle">
+          <div className="bg-bg-secondary rounded-xl shadow p-2 md:p-4 border border-border-subtle relative">
             {/* Clickable Header */}
             <div
               className="flex justify-between items-center mb-2 cursor-pointer py-2"
@@ -356,22 +458,60 @@ const ExamPage: React.FC<ExamPageProps> = ({
             {/* Collapsible Content */}
             <div
               ref={fullLimbViewerRef}
-              className={`w-full h-96 border border-border-subtle rounded bg-bg-primary transition-all duration-300 ease-in-out overflow-hidden ${isLimbViewOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+              className={`w-full h-96 border border-border-subtle rounded bg-bg-primary transition-all duration-300 ease-in-out overflow-hidden relative ${isLimbViewOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                 }`}
             >
               <ModelViewer
                 modelFile={fullFile}
                 visualPoints={getVisualPoints(true)}
-                onPointSelect={
-                  selectedPoint !== null
-                    ? (position) => {
-                      const updatedPoints = [...points];
-                      updatedPoints[selectedPoint].limbPosition = position;
-                      setPoints(updatedPoints);
+                onPointSelect={handleLimbClick}
+              >
+                {/* Mapping Control Button */}
+                <div className="absolute top-24 right-2 z-10">
+                  <button
+                    disabled={selectedPoint === null}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (selectedPoint !== null) {
+                        const point = points[selectedPoint];
+                        if (point.limbPosition) {
+                          // Remove mapping
+                          const updatedPoints = [...points];
+                          updatedPoints[selectedPoint] = {
+                            ...updatedPoints[selectedPoint],
+                            limbPosition: null,
+                            hasUnsavedChanges: true // Mark as modified
+                          };
+                          setPoints(updatedPoints);
+                        } else {
+                          // Enter mapping mode (implicit by having selection but no mapping)
+                          // We might want a toast or visual cue here
+                          alert('לחץ על המודל כדי למקם את הנקודה');
+                        }
+                      }
+                    }}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-colors ${selectedPoint === null
+                      ? 'bg-gray-300 text-gray-400 cursor-not-allowed'
+                      : points[selectedPoint]?.limbPosition
+                        ? 'bg-white/80 text-error hover:bg-white' // Minus (Remove)
+                        : 'bg-white/80 text-accent-blue hover:bg-white' // Plus (Add)
+                      }`}
+                    title={
+                      selectedPoint === null
+                        ? 'בחר נקודה בגדם תחילה'
+                        : points[selectedPoint]?.limbPosition
+                          ? 'הסר מיפוי'
+                          : 'הוסף מיפוי'
                     }
-                    : null
-                }
-              />
+                  >
+                    {selectedPoint !== null && points[selectedPoint]?.limbPosition ? (
+                      <Minus size={20} />
+                    ) : (
+                      <Plus size={20} />
+                    )}
+                  </button>
+                </div>
+              </ModelViewer>
             </div>
           </div>
           {/* --- END COLLAPSIBLE --- */}
