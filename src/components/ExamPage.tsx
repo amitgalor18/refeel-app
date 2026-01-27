@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ChevronDown, Plus, Minus } from 'lucide-react';
+import { ChevronDown, Plus, Minus, Grid } from 'lucide-react';
 import { BiSolidCamera, BiSolidSave, BiSolidCheckCircle, BiSolidImage, BiSolidInfoCircle, BiSolidTrash } from 'react-icons/bi';
 import ModelViewer from './ModelViewer';
 import CameraModal from './CameraModal';
@@ -65,8 +65,9 @@ const ExamPage: React.FC<ExamPageProps> = ({
   const stumpViewerRef = useRef<HTMLDivElement>(null!);
   const fullLimbViewerRef = useRef<HTMLDivElement>(null!);
   const [isLimbViewOpen, setIsLimbViewOpen] = useState(true);
-  const [descriptionModalViewMode, setDescriptionModalViewMode] = useState(false); // NEW: Control initial view mode
-  const [isAddPointMode, setIsAddPointMode] = useState(false); // NEW: Toggle for adding points
+  const [descriptionModalViewMode, setDescriptionModalViewMode] = useState(false); // Control initial view mode
+  const [isAddPointMode, setIsAddPointMode] = useState(false); // Toggle for adding points
+  const [showGrid, setShowGrid] = useState(false); // Toggle for grid visibility
 
   const { stumpFile, fullFile } = getModelFilenames(examData);
 
@@ -416,7 +417,24 @@ const ExamPage: React.FC<ExamPageProps> = ({
                 modelFile={stumpFile}
                 visualPoints={getVisualPoints(false)}
                 onPointSelect={handleStumpClick}
+                showGrid={showGrid}
               >
+                {/* Grid Toggle Button */}
+                <div className="absolute bottom-2 right-2 z-10">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowGrid(!showGrid);
+                    }}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-colors ${showGrid
+                      ? 'bg-accent-blue text-white'
+                      : 'bg-white/80 text-gray-600 hover:bg-white'
+                      }`}
+                    title={showGrid ? 'הסתר רשת' : 'הצג רשת'}
+                  >
+                    <Grid size={18} />
+                  </button>
+                </div>
                 {/* Add Point Toggle Button */}
                 <div className="absolute top-24 right-2 z-10">
                   <button
