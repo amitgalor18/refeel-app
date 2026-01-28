@@ -197,7 +197,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
         setModelLoaded(true);
       },
       undefined,
-      (error) => console.error(`Error loading OBJ model ${actualModelPath}`, error)
+      (error) => console.error(`Error loading OBJ model ${modelFile}`, error)
     );
 
     // Animation loop
