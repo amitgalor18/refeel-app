@@ -17,6 +17,7 @@ interface ModelViewerProps {
   visualPoints: VisualPoint[];
   onPointSelect?: ((position: { x: number; y: number; z: number }) => void) | null;
   showResetControls?: boolean;
+  showGrid?: boolean;
   children?: React.ReactNode;
 }
 
@@ -25,6 +26,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
   visualPoints,
   onPointSelect,
   showResetControls = true,
+  showGrid = false,
   children
 }) => {
   // We use an internal ref for the canvas to avoid clearing the buttons
@@ -33,6 +35,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const modelRef = useRef<THREE.Group | null>(null);
+  const wireframeRef = useRef<THREE.Group | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const raycaster = useRef<THREE.Raycaster>(new THREE.Raycaster());
   const mouse = useRef<THREE.Vector2>(new THREE.Vector2());
@@ -102,24 +105,99 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
         object.scale.set(scale, scale, scale);
 
 
-        // Use a basic material
+        // 1. Base Material (Skin)
         object.traverse((child) => {
           if (child instanceof THREE.Mesh) {
-            child.material = new THREE.MeshPhongMaterial({ color: 0xffdbac });
+            child.material = new THREE.MeshPhongMaterial({
+              color: 0xffdbac,
+              polygonOffset: true,
+              polygonOffsetFactor: 1,
+              polygonOffsetUnits: 1
+            });
           }
         });
 
         modelRef.current = object;
         scene.add(object);
 
+        // 2. Grid Shader Material
+        // This shader draws rings (Latitude) and radial lines (Longitude)
+        const gridMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            scale: { value: scale },
+            spacing: { value: 0.15 }, // ~2cm visual spacing
+            thickness: { value: 0.015 }, // Line thickness
+            color: { value: new THREE.Color(0x000000) }
+          },
+          vertexShader: `
+            varying vec3 vPos;
+            void main() {
+              vPos = position; // Local position
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            varying vec3 vPos;
+            uniform float scale;
+            uniform float spacing;
+            uniform float thickness;
+            uniform vec3 color;
+            
+            void main() {
+              // Normalize position to visual units
+              vec3 visualPos = vPos * scale;
+              
+              // 1. Horizontal Lines (Latitude) - NOW USING Z AXIS
+              // This creates concentric rings along the length of the stump
+              float zMod = mod(visualPos.z, spacing);
+              float zCondition = step(zMod, thickness * 0.5) + step(spacing - thickness * 0.5, zMod);
+              
+              // 2. Vertical Lines (Longitude) - NOW USING XY PLANE
+              // This creates radial lines from the center axis
+              // Added + 1.57 (90 degrees) to rotate the grid orientation
+              float angle = atan(visualPos.y, visualPos.x) + 1.57; 
+              
+              float radialSegments = 24.0; 
+              float angleStep = 6.28318 / radialSegments;
+              
+              float aMod = mod(angle, angleStep);
+              
+              // Adjust angular thickness based on radius
+              // Radius is now length in XY plane
+              float r = length(visualPos.xy);
+              r = max(r, 0.01); 
+              float aThick = thickness / r;
+              
+              float aCondition = step(aMod, aThick * 0.5) + step(angleStep - aThick * 0.5, aMod);
+              
+              // Combine both grids
+              float grid = max(min(zCondition, 1.0), min(aCondition, 1.0));
+              
+              // Discard transparent pixels
+              if (grid < 0.1) discard;
+              
+              gl_FragColor = vec4(color, 0.3); // 30% Opacity
+            }
+          `,
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false // Important for transparency
+        });
+
+        const wireframeGroup = object.clone();
+        wireframeGroup.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.material = gridMaterial;
+          }
+        });
+        wireframeGroup.visible = showGrid;
+        wireframeRef.current = wireframeGroup;
+        scene.add(wireframeGroup);
+
         setModelLoaded(true);
       },
-      (xhr) => {
-        console.log(`Model ${modelFile} loading: ${(xhr.loaded / xhr.total) * 100}%`);
-      },
-      (error) => {
-        console.error(`Error loading OBJ model ${modelFile}`, error);
-      }
+      undefined,
+      (error) => console.error(`Error loading OBJ model ${modelFile}`, error)
     );
 
     // Animation loop
@@ -156,6 +234,12 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
     };
   }, [modelFile]); // Removed containerRef dependency
 
+  // Toggle grid visibility
+  useEffect(() => {
+    if (wireframeRef.current) {
+      wireframeRef.current.visible = showGrid;
+    }
+  }, [showGrid]);
 
   // Click/Touch handling effect - Works for both mouse and touch
   useEffect(() => {
@@ -250,7 +334,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
     };
   }, [onPointSelect]);
 
-  // Effect for updating points (spheres) - NOW WITH VISUAL STATES
+  // Effect for updating points (spheres)
   useEffect(() => {
     if (!sceneRef.current || !modelLoaded) return;
 
