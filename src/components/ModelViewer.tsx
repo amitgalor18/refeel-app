@@ -392,20 +392,37 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
     });
   }, [visualPoints, modelLoaded, modelRef.current]);
 
-  const resetView = (view: 'front' | 'back') => {
+  const [activeView, setActiveView] = useState<'front' | 'back' | 'left' | 'right' | null>(null);
+
+  // Clear active view when user manually rotates
+  useEffect(() => {
+    if (!controlsRef.current) return;
+
+    const controls = controlsRef.current;
+    const onStart = () => setActiveView(null);
+
+    controls.addEventListener('start', onStart);
+    return () => controls.removeEventListener('start', onStart);
+  }, []);
+
+  const resetView = (view: 'front' | 'back' | 'left' | 'right') => {
     if (!cameraRef.current || !controlsRef.current) return;
 
     const distance = 3; // Standard distance
     const height = 1.5; // Standard height
 
-    if (view === 'front') {
-      cameraRef.current.position.set(0, height, distance);
-    } else {
-      cameraRef.current.position.set(0, height, -distance);
-    }
+    const coords: Record<string, [number, number, number]> = {
+      front: [0, height, distance],
+      back: [0, height, -distance],
+      right: [distance, height, 0],
+      left: [-distance, height, 0]
+    };
 
+    const [x, y, z] = coords[view];
+    cameraRef.current.position.set(x, y, z);
     cameraRef.current.lookAt(0, 0, 0);
     controlsRef.current.update();
+    setActiveView(view);
   };
 
   return (
@@ -413,18 +430,46 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
       <div ref={canvasContainerRef} className="w-full h-full" />
       {children}
       {showResetControls && (
-        <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
+        <div className="absolute top-2 right-2 flex items-center gap-1 z-10" dir="ltr">
           <button
-            onClick={(e) => { e.stopPropagation(); resetView('front'); }}
-            className="bg-white/80 hover:bg-white text-gray-800 px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors"
+            onClick={(e) => { e.stopPropagation(); resetView('left'); }}
+            className={`px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors ${activeView === 'left'
+              ? 'bg-accent-blue text-white'
+              : 'bg-white/80 hover:bg-white text-gray-800'
+              }`}
           >
-            חזית
+            שמאל
           </button>
+
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); resetView('front'); }}
+              className={`px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors ${activeView === 'front'
+                ? 'bg-accent-blue text-white'
+                : 'bg-white/80 hover:bg-white text-gray-800'
+                }`}
+            >
+              חזית
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); resetView('back'); }}
+              className={`px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors ${activeView === 'back'
+                ? 'bg-accent-blue text-white'
+                : 'bg-white/80 hover:bg-white text-gray-800'
+                }`}
+            >
+              אחור
+            </button>
+          </div>
+
           <button
-            onClick={(e) => { e.stopPropagation(); resetView('back'); }}
-            className="bg-white/80 hover:bg-white text-gray-800 px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors"
+            onClick={(e) => { e.stopPropagation(); resetView('right'); }}
+            className={`px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors ${activeView === 'right'
+              ? 'bg-accent-blue text-white'
+              : 'bg-white/80 hover:bg-white text-gray-800'
+              }`}
           >
-            אחור
+            ימין
           </button>
         </div>
       )}
