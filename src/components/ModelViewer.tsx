@@ -17,6 +17,7 @@ interface ModelViewerProps {
   visualPoints: VisualPoint[];
   onPointSelect?: ((position: { x: number; y: number; z: number }) => void) | null;
   showResetControls?: boolean;
+  showGrid?: boolean;
   children?: React.ReactNode;
 }
 
@@ -25,6 +26,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
   visualPoints,
   onPointSelect,
   showResetControls = true,
+  showGrid = false,
   children
 }) => {
   // We use an internal ref for the canvas to avoid clearing the buttons
@@ -33,6 +35,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const modelRef = useRef<THREE.Group | null>(null);
+  const wireframeRef = useRef<THREE.Group | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const raycaster = useRef<THREE.Raycaster>(new THREE.Raycaster());
   const mouse = useRef<THREE.Vector2>(new THREE.Vector2());
@@ -102,24 +105,99 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
         object.scale.set(scale, scale, scale);
 
 
-        // Use a basic material
+        // 1. Base Material (Skin)
         object.traverse((child) => {
           if (child instanceof THREE.Mesh) {
-            child.material = new THREE.MeshPhongMaterial({ color: 0xffdbac });
+            child.material = new THREE.MeshPhongMaterial({
+              color: 0xffdbac,
+              polygonOffset: true,
+              polygonOffsetFactor: 1,
+              polygonOffsetUnits: 1
+            });
           }
         });
 
         modelRef.current = object;
         scene.add(object);
 
+        // 2. Grid Shader Material
+        // This shader draws rings (Latitude) and radial lines (Longitude)
+        const gridMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            scale: { value: scale },
+            spacing: { value: 0.15 }, // ~2cm visual spacing
+            thickness: { value: 0.015 }, // Line thickness
+            color: { value: new THREE.Color(0x000000) }
+          },
+          vertexShader: `
+            varying vec3 vPos;
+            void main() {
+              vPos = position; // Local position
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            varying vec3 vPos;
+            uniform float scale;
+            uniform float spacing;
+            uniform float thickness;
+            uniform vec3 color;
+            
+            void main() {
+              // Normalize position to visual units
+              vec3 visualPos = vPos * scale;
+              
+              // 1. Horizontal Lines (Latitude) - NOW USING Z AXIS
+              // This creates concentric rings along the length of the stump
+              float zMod = mod(visualPos.z, spacing);
+              float zCondition = step(zMod, thickness * 0.5) + step(spacing - thickness * 0.5, zMod);
+              
+              // 2. Vertical Lines (Longitude) - NOW USING XY PLANE
+              // This creates radial lines from the center axis
+              // Added + 1.57 (90 degrees) to rotate the grid orientation
+              float angle = atan(visualPos.y, visualPos.x) + 1.57; 
+              
+              float radialSegments = 24.0; 
+              float angleStep = 6.28318 / radialSegments;
+              
+              float aMod = mod(angle, angleStep);
+              
+              // Adjust angular thickness based on radius
+              // Radius is now length in XY plane
+              float r = length(visualPos.xy);
+              r = max(r, 0.01); 
+              float aThick = thickness / r;
+              
+              float aCondition = step(aMod, aThick * 0.5) + step(angleStep - aThick * 0.5, aMod);
+              
+              // Combine both grids
+              float grid = max(min(zCondition, 1.0), min(aCondition, 1.0));
+              
+              // Discard transparent pixels
+              if (grid < 0.1) discard;
+              
+              gl_FragColor = vec4(color, 0.3); // 30% Opacity
+            }
+          `,
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false // Important for transparency
+        });
+
+        const wireframeGroup = object.clone();
+        wireframeGroup.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.material = gridMaterial;
+          }
+        });
+        wireframeGroup.visible = showGrid;
+        wireframeRef.current = wireframeGroup;
+        scene.add(wireframeGroup);
+
         setModelLoaded(true);
       },
-      (xhr) => {
-        console.log(`Model ${modelFile} loading: ${(xhr.loaded / xhr.total) * 100}%`);
-      },
-      (error) => {
-        console.error(`Error loading OBJ model ${modelFile}`, error);
-      }
+      undefined,
+      (error) => console.error(`Error loading OBJ model ${modelFile}`, error)
     );
 
     // Animation loop
@@ -156,6 +234,12 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
     };
   }, [modelFile]); // Removed containerRef dependency
 
+  // Toggle grid visibility
+  useEffect(() => {
+    if (wireframeRef.current) {
+      wireframeRef.current.visible = showGrid;
+    }
+  }, [showGrid]);
 
   // Click/Touch handling effect - Works for both mouse and touch
   useEffect(() => {
@@ -250,7 +334,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
     };
   }, [onPointSelect]);
 
-  // Effect for updating points (spheres) - NOW WITH VISUAL STATES
+  // Effect for updating points (spheres)
   useEffect(() => {
     if (!sceneRef.current || !modelLoaded) return;
 
@@ -308,20 +392,37 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
     });
   }, [visualPoints, modelLoaded, modelRef.current]);
 
-  const resetView = (view: 'front' | 'back') => {
+  const [activeView, setActiveView] = useState<'front' | 'back' | 'left' | 'right' | null>(null);
+
+  // Clear active view when user manually rotates
+  useEffect(() => {
+    if (!controlsRef.current) return;
+
+    const controls = controlsRef.current;
+    const onStart = () => setActiveView(null);
+
+    controls.addEventListener('start', onStart);
+    return () => controls.removeEventListener('start', onStart);
+  }, []);
+
+  const resetView = (view: 'front' | 'back' | 'left' | 'right') => {
     if (!cameraRef.current || !controlsRef.current) return;
 
     const distance = 3; // Standard distance
     const height = 1.5; // Standard height
 
-    if (view === 'front') {
-      cameraRef.current.position.set(0, height, distance);
-    } else {
-      cameraRef.current.position.set(0, height, -distance);
-    }
+    const coords: Record<string, [number, number, number]> = {
+      front: [0, height, distance],
+      back: [0, height, -distance],
+      right: [distance, height, 0],
+      left: [-distance, height, 0]
+    };
 
+    const [x, y, z] = coords[view];
+    cameraRef.current.position.set(x, y, z);
     cameraRef.current.lookAt(0, 0, 0);
     controlsRef.current.update();
+    setActiveView(view);
   };
 
   return (
@@ -329,18 +430,46 @@ const ModelViewer: React.FC<ModelViewerProps> = ({
       <div ref={canvasContainerRef} className="w-full h-full" />
       {children}
       {showResetControls && (
-        <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
+        <div className="absolute top-2 right-2 flex items-center gap-1 z-10" dir="ltr">
           <button
-            onClick={(e) => { e.stopPropagation(); resetView('front'); }}
-            className="bg-white/80 hover:bg-white text-gray-800 px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors"
+            onClick={(e) => { e.stopPropagation(); resetView('left'); }}
+            className={`px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors ${activeView === 'left'
+              ? 'bg-accent-blue text-white'
+              : 'bg-white/80 hover:bg-white text-gray-800'
+              }`}
           >
-            חזית
+            שמאל
           </button>
+
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); resetView('front'); }}
+              className={`px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors ${activeView === 'front'
+                ? 'bg-accent-blue text-white'
+                : 'bg-white/80 hover:bg-white text-gray-800'
+                }`}
+            >
+              חזית
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); resetView('back'); }}
+              className={`px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors ${activeView === 'back'
+                ? 'bg-accent-blue text-white'
+                : 'bg-white/80 hover:bg-white text-gray-800'
+                }`}
+            >
+              אחור
+            </button>
+          </div>
+
           <button
-            onClick={(e) => { e.stopPropagation(); resetView('back'); }}
-            className="bg-white/80 hover:bg-white text-gray-800 px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors"
+            onClick={(e) => { e.stopPropagation(); resetView('right'); }}
+            className={`px-3 py-1 rounded shadow text-sm font-medium backdrop-blur-sm transition-colors ${activeView === 'right'
+              ? 'bg-accent-blue text-white'
+              : 'bg-white/80 hover:bg-white text-gray-800'
+              }`}
           >
-            אחור
+            ימין
           </button>
         </div>
       )}
