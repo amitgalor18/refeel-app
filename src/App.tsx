@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { configError, auth } from './firebase';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import ConfigError from './components/ConfigError';
 import type { ExamData, PointData } from './firebaseUtils';
-import { createPoint, updatePoint } from './firebaseUtils'; // Import firebase functions
+import { createPoint, updatePoint, commitSessionAndAdvance, reloadExam } from './firebaseUtils'; // Import firebase functions
 import WelcomePage from './components/WelcomePage';
 import ExamPage from './components/ExamPage';
 import NewExamForm from './components/NewExamForm';
@@ -29,6 +29,37 @@ const ReFeel = () => {
   const [showEditExamModal, setShowEditExamModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false); // New state
+
+  // Live ticker for current-session duration display (re-renders every 60s).
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (currentPage !== 'exam') return;
+    const id = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(id);
+  }, [currentPage]);
+
+  const currentSessionSeconds = examData?.currentSessionStartedAt
+    ? Math.max(0, Math.floor((now - new Date(examData.currentSessionStartedAt).getTime()) / 1000))
+    : 0;
+  const totalDurationSeconds = examData?.totalDuration || 0;
+
+  // Commit current session's productive duration whenever we leave the exam page.
+  // This catches all exit paths (סיים, save-all, discard, etc.) without needing
+  // them to all call the same helper — and complements the lazy-commit on load.
+  const prevPageRef = useRef(currentPage);
+  const examDataRef = useRef(examData);
+  useEffect(() => { examDataRef.current = examData; }, [examData]);
+  useEffect(() => {
+    if (prevPageRef.current === 'exam' && currentPage !== 'exam') {
+      const exam = examDataRef.current;
+      if (exam?.id) {
+        commitSessionAndAdvance(exam)
+          .then(updated => setExamData(updated))
+          .catch(err => console.error('Failed to commit session duration:', err));
+      }
+    }
+    prevPageRef.current = currentPage;
+  }, [currentPage]);
 
   useEffect(() => {
     if (configError) return;
@@ -61,6 +92,14 @@ const ReFeel = () => {
       }
     }
     setCurrentPage(page);
+  };
+
+  // Refresh local examData with latest session/duration fields from server.
+  // Called after each point op so the live total stays in sync.
+  const refreshExamData = async () => {
+    if (!examData?.id) return;
+    const fields = await reloadExam(examData.id);
+    if (fields) setExamData(prev => prev ? { ...prev, ...fields } : prev);
   };
 
   // Save All Handler
@@ -105,6 +144,7 @@ const ReFeel = () => {
         }
       }));
 
+      await refreshExamData();
       console.log('All points saved successfully');
       setShowUnsavedChangesModal(false);
       setCurrentPage('welcome');
@@ -131,6 +171,8 @@ const ReFeel = () => {
       <TopBar
         currentPage={currentPage}
         examData={examData}
+        currentSessionSeconds={currentSessionSeconds}
+        totalDurationSeconds={totalDurationSeconds}
         onNavigate={handleNavigate} // Use custom handler
         onEditExam={() => setShowEditExamModal(true)}
         onShowInfo={() => setShowInfoModal(true)}
@@ -172,6 +214,9 @@ const ReFeel = () => {
             selectedPoint={selectedPoint}
             showDescriptionModal={showDescriptionModal}
             showCameraModal={showCameraModal}
+            currentSessionSeconds={currentSessionSeconds}
+            totalDurationSeconds={totalDurationSeconds}
+            onPointSaved={refreshExamData}
             setSelectedPoint={setSelectedPoint}
             setShowDescriptionModal={setShowDescriptionModal}
             setShowCameraModal={setShowCameraModal}
@@ -185,6 +230,8 @@ const ReFeel = () => {
         <EditExamModal
           examData={examData}
           pointsCount={points.length}
+          currentSessionSeconds={currentSessionSeconds}
+          totalDurationSeconds={totalDurationSeconds}
           onClose={() => setShowEditExamModal(false)}
           onUpdate={(updatedExam, pointsDeleted) => {
             setExamData(updatedExam);

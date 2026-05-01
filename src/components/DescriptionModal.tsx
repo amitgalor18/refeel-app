@@ -32,8 +32,9 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
     stimulationType: point.stimulationType || '',
     program: point.program || '',
     frequency: point.frequency || '',
+    pulseLength: point.pulseLength || '',
     sensation: point.sensation || '',
-    distanceFromStump: point.distanceFromStump || ''
+    locationDescription: point.locationDescription || ''
   });
 
   // State for custom image deletion confirmation modal
@@ -45,8 +46,9 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
       stimulationType: point.stimulationType || '',
       program: point.program || '',
       frequency: point.frequency || '',
+      pulseLength: point.pulseLength || '',
       sensation: point.sensation || '',
-      distanceFromStump: point.distanceFromStump || ''
+      locationDescription: point.locationDescription || ''
     });
   }, [point]);
 
@@ -144,10 +146,16 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
                   {formData.frequency || '-'}
                 </div>
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-400 mb-1">מרחק מקצה הגדם</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">אורך פולס (ms)</label>
                 <div className="p-2 bg-bg-input rounded-lg border border-border-subtle text-text-primary">
-                  {formData.distanceFromStump ? `${formData.distanceFromStump} ס"מ` : '-'}
+                  {formData.pulseLength || '-'}
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-400 mb-1">מיקום על הגדם</label>
+                <div className="p-2 bg-bg-input rounded-lg border border-border-subtle text-text-primary">
+                  {formData.locationDescription || '-'}
                 </div>
               </div>
               <div className="col-span-2">
@@ -295,24 +303,35 @@ const DescriptionModal: React.FC<DescriptionModalProps> = ({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-400">תדירות</label>
-            <input
-              type="text"
-              value={formData.frequency}
-              onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-              className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-400">תדירות (Hz)</label>
+              <input
+                type="text"
+                value={formData.frequency}
+                onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-400">אורך פולס (ms)</label>
+              <input
+                type="text"
+                value={formData.pulseLength}
+                onChange={(e) => setFormData({ ...formData, pulseLength: e.target.value })}
+                className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-400">מרחק מקצה הגדם (ס"מ)</label>
+            <label className="block text-sm font-medium mb-1 text-gray-400">מיקום על הגדם</label>
             <input
-              type="number"
-              value={formData.distanceFromStump}
-              onChange={(e) => setFormData({ ...formData, distanceFromStump: e.target.value })}
+              type="text"
+              value={formData.locationDescription}
+              onChange={(e) => setFormData({ ...formData, locationDescription: e.target.value })}
               className="w-full p-2 bg-bg-input border-none rounded-lg text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none"
-              placeholder="0"
+              placeholder='לדוגמה: "על העצב הטיביאלי האחורי"'
             />
           </div>
 

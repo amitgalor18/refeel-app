@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { Menu, Info, Edit } from 'lucide-react';
+import { Menu, Info, Edit, Clock } from 'lucide-react';
 import type { ExamData } from '../firebaseUtils';
+import { formatDuration } from '../firebaseUtils';
 
 interface TopBarProps {
     currentPage: string;
     examData: ExamData | null;
+    currentSessionSeconds: number;
+    totalDurationSeconds: number;
     onNavigate: (page: string) => void;
     onEditExam: () => void;
     onShowInfo: () => void;
@@ -13,6 +16,8 @@ interface TopBarProps {
 const TopBar: React.FC<TopBarProps> = ({
     currentPage,
     examData,
+    currentSessionSeconds,
+    totalDurationSeconds,
     onNavigate,
     onEditExam,
     onShowInfo
@@ -122,15 +127,26 @@ const TopBar: React.FC<TopBarProps> = ({
                 </h1>
             </div>
 
-            {/* Left Side: Finish Button (Clock removed) */}
-            <div className="flex items-center justify-end min-w-[40px]">
+            {/* Left Side: Duration + Finish Button */}
+            <div className="flex items-center justify-end gap-2 min-w-[40px]">
                 {currentPage === 'exam' && (
-                    <button
-                        onClick={() => onNavigate('welcome')}
-                        className="bg-error text-white px-3 py-1 rounded-full text-xs hover:bg-red-600 transition shadow-sm whitespace-nowrap"
-                    >
-                        סיים
-                    </button>
+                    <>
+                        <div
+                            className="hidden md:flex items-center gap-1.5 text-xs text-text-primary bg-bg-secondary border border-border-subtle px-2 py-1 rounded whitespace-nowrap"
+                            title="הזמן שעבר מאז פתחת את הבדיקה / סה״כ זמן פעיל בו נערכו נקודות"
+                        >
+                            <Clock size={12} className="text-accent-blue" />
+                            <span title="סשן נוכחי">{formatDuration(currentSessionSeconds)}</span>
+                            <span className="text-gray-500">/</span>
+                            <span title="זמן פעיל מצטבר">{formatDuration(totalDurationSeconds)}</span>
+                        </div>
+                        <button
+                            onClick={() => onNavigate('welcome')}
+                            className="bg-error text-white px-3 py-1 rounded-full text-xs hover:bg-red-600 transition shadow-sm whitespace-nowrap"
+                        >
+                            סיים
+                        </button>
+                    </>
                 )}
             </div>
         </div>

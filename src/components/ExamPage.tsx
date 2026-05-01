@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { ChevronDown, Plus, Minus, Grid } from 'lucide-react';
+import { ChevronDown, Plus, Minus, Grid, Clock } from 'lucide-react';
 import { BiSolidCamera, BiSolidSave, BiSolidCheckCircle, BiSolidImage, BiSolidInfoCircle, BiSolidTrash } from 'react-icons/bi';
 import ModelViewer from './ModelViewer';
 import CameraModal from './CameraModal';
 import DescriptionModal from './DescriptionModal';
 import type { PointData, ExamData } from '../firebaseUtils';
-import { updatePoint, deletePoint, createPoint } from '../firebaseUtils';
+import { updatePoint, deletePoint, createPoint, formatDuration } from '../firebaseUtils';
 
 interface ExamPageProps {
   examData: ExamData | null;
@@ -13,6 +13,9 @@ interface ExamPageProps {
   selectedPoint: number | null;
   showDescriptionModal: boolean;
   showCameraModal: boolean;
+  currentSessionSeconds: number;
+  totalDurationSeconds: number;
+  onPointSaved: () => Promise<void>;
   setSelectedPoint: (index: number | null) => void;
   setShowDescriptionModal: (show: boolean) => void;
   setShowCameraModal: (show: boolean) => void;
@@ -57,6 +60,9 @@ const ExamPage: React.FC<ExamPageProps> = ({
   selectedPoint,
   showDescriptionModal,
   showCameraModal,
+  currentSessionSeconds,
+  totalDurationSeconds,
+  onPointSaved,
   setSelectedPoint,
   setShowDescriptionModal,
   setShowCameraModal,
@@ -124,7 +130,8 @@ const ExamPage: React.FC<ExamPageProps> = ({
           sensation: '',
           imageUrl: null,
           imageUrls: [],
-          distanceFromStump: '',
+          locationDescription: '',
+          pulseLength: '',
           order: points.length + 1, // Assign order
           hasUnsavedChanges: true // Mark as modified
         };
@@ -216,6 +223,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
           return updatedPoints;
         });
 
+        await onPointSaved();
         console.log('Point saved successfully!');
         setSelectedPoint(null);
 
@@ -237,6 +245,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
           return updatedPoints;
         });
 
+        await onPointSaved();
         console.log('Point updated successfully!');
         setSelectedPoint(null);
       }
@@ -307,6 +316,7 @@ const ExamPage: React.FC<ExamPageProps> = ({
       if (typeof pointToDelete.id === 'string' && !pointToDelete.id.startsWith('temp-') && examData?.id) {
         console.log('🔥 Calling deletePoint on Firebase...', { examId: examData.id, pointId: pointToDelete.id });
         await deletePoint(examData.id, pointToDelete.id);
+        await onPointSaved();
         console.log('✅ Firebase delete successful');
       } else {
         console.log('ℹ️ Skipping Firebase delete (temp point or missing examId)');
@@ -405,6 +415,14 @@ const ExamPage: React.FC<ExamPageProps> = ({
                 ? 'נקודה כחולה טרם נשמרה - לחץ על האיבר השלם למיפוי, או לחץ "שמירה" להוספת פרטים'
                 : 'לחץ על נקודה קיימת לבחירה, או לחץ על ה- + להוספת נקודה חדשה'}
           </p>
+        </div>
+
+        {/* Mobile fallback: session duration (TopBar hides this on small screens) */}
+        <div className="md:hidden bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5 mb-4 flex items-center justify-center gap-2 text-xs text-text-primary">
+          <Clock size={12} className="text-accent-blue" />
+          <span title="הזמן שעבר מאז פתחת את הבדיקה">סשן נוכחי: {formatDuration(currentSessionSeconds)}</span>
+          <span className="text-gray-500">|</span>
+          <span title="סה״כ זמן פעיל בו נערכו נקודות">זמן פעיל מצטבר: {formatDuration(totalDurationSeconds)}</span>
         </div>
 
         {/* 3D Models */}

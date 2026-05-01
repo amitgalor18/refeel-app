@@ -32,7 +32,14 @@ export interface ExamData {
   lastEdited?: string;
   createdAt?: string;
   deviceModel?: string;
+  // Session duration tracking
+  totalDuration?: number; // accumulated seconds across productive sessions
+  currentSessionStartedAt?: string; // ISO timestamp of current session start
+  lastPointEditedAt?: string; // ISO timestamp of last point add/edit/delete
 }
+
+// Cap any single committed session at 2 hours to absorb idle/forgotten-tab cases
+const MAX_SESSION_SECONDS = 2 * 60 * 60;
 
 export interface PointData {
   id?: string;
@@ -45,7 +52,8 @@ export interface PointData {
   sensation: string;
   imageUrl: string | null; // Deprecated in favor of imageUrls
   imageUrls?: string[]; // New field for multiple images
-  distanceFromStump?: string; // New field
+  locationDescription?: string;
+  pulseLength?: string;
   order?: number; // New field for ordering
   createdAt?: any; // Firestore Timestamp
   hasUnsavedChanges?: boolean; // Local flag for UI state
@@ -58,10 +66,13 @@ export interface PointData {
  */
 export const createExam = async (examData: Omit<ExamData, 'id'>): Promise<string> => {
   try {
+    const now = Timestamp.now();
     const docRef = await addDoc(collection(db, 'examinations'), {
       ...examData,
-      createdAt: Timestamp.now(),
-      lastEdited: Timestamp.now()
+      createdAt: now,
+      lastEdited: now,
+      currentSessionStartedAt: now,
+      totalDuration: 0
     });
     console.log('Exam created with ID:', docRef.id);
     return docRef.id;
@@ -101,6 +112,8 @@ export const loadExam = async (
         // Convert Timestamps to ISO strings
         lastEdited: data.lastEdited?.toDate?.().toISOString() || data.lastEdited,
         createdAt: data.createdAt?.toDate?.().toISOString() || data.createdAt,
+        currentSessionStartedAt: data.currentSessionStartedAt?.toDate?.().toISOString() || data.currentSessionStartedAt,
+        lastPointEditedAt: data.lastPointEditedAt?.toDate?.().toISOString() || data.lastPointEditedAt,
       } as ExamData;
     });
 
@@ -133,6 +146,8 @@ export const getPatientExams = async (patientId: string): Promise<ExamData[]> =>
         // Convert Timestamps to ISO strings
         lastEdited: data.lastEdited?.toDate?.().toISOString() || data.lastEdited,
         createdAt: data.createdAt?.toDate?.().toISOString() || data.createdAt,
+        currentSessionStartedAt: data.currentSessionStartedAt?.toDate?.().toISOString() || data.currentSessionStartedAt,
+        lastPointEditedAt: data.lastPointEditedAt?.toDate?.().toISOString() || data.lastPointEditedAt,
       } as ExamData;
     });
   } catch (error) {
@@ -159,6 +174,99 @@ export const updateExam = async (
     console.error('Error updating exam:', error);
     throw error;
   }
+};
+
+/**
+ * Increment totalDuration by the time elapsed since the previous point edit (or
+ * since sessionStart if this is the first edit in the session), then update
+ * lastPointEditedAt to now. Gaps > MAX_SESSION_SECONDS (2h) are treated as
+ * inactivity breaks and are not counted.
+ *
+ * Called after every successful point create/update/delete so that totalDuration
+ * always reflects committed active editing time in real-time, without needing to
+ * wait for the session to end.
+ */
+const touchExamPointEdit = async (examId: string): Promise<void> => {
+  const examRef = doc(db, 'examinations', examId);
+  const snap = await getDoc(examRef);
+  if (!snap.exists()) return;
+  const data = snap.data();
+
+  const sessionStartIso: string | undefined =
+    data.currentSessionStartedAt?.toDate?.().toISOString() || data.currentSessionStartedAt;
+  const lastPointEditIso: string | undefined =
+    data.lastPointEditedAt?.toDate?.().toISOString() || data.lastPointEditedAt;
+  const storedTotal: number = data.totalDuration || 0;
+
+  // Use the most recent of (lastPointEdit, sessionStart) as the previous marker
+  const prevMarkerIso =
+    lastPointEditIso && sessionStartIso && new Date(lastPointEditIso) > new Date(sessionStartIso)
+      ? lastPointEditIso
+      : sessionStartIso;
+
+  const now = Timestamp.now();
+  let newTotal = storedTotal;
+  if (prevMarkerIso) {
+    const deltaSec = Math.floor((now.toMillis() - new Date(prevMarkerIso).getTime()) / 1000);
+    // Only count if gap is within the inactivity threshold
+    if (deltaSec > 0 && deltaSec <= MAX_SESSION_SECONDS) {
+      newTotal += deltaSec;
+    }
+  }
+
+  await updateDoc(examRef, {
+    lastEdited: now,
+    lastPointEditedAt: now,
+    totalDuration: newTotal
+  });
+};
+
+/**
+ * Advance currentSessionStartedAt to "now", marking the start of a fresh session.
+ * With live-increment in touchExamPointEdit, all productive duration is already
+ * committed by the time this is called — so this just resets the session boundary.
+ * Called on exam load (so the next open starts fresh) and on סיים.
+ */
+export const commitSessionAndAdvance = async (exam: ExamData): Promise<ExamData> => {
+  if (!exam.id) return exam;
+
+  const now = Timestamp.now();
+  const examRef = doc(db, 'examinations', exam.id);
+  await updateDoc(examRef, { currentSessionStartedAt: now });
+
+  return {
+    ...exam,
+    currentSessionStartedAt: now.toDate().toISOString()
+  };
+};
+
+/**
+ * Reload the session-related fields of an exam from Firestore.
+ * Called by the UI after each point op so local state reflects the live-incremented
+ * totalDuration without needing to thread return values through every call site.
+ */
+export const reloadExam = async (examId: string): Promise<Partial<ExamData> | null> => {
+  const examRef = doc(db, 'examinations', examId);
+  const snap = await getDoc(examRef);
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return {
+    totalDuration: data.totalDuration || 0,
+    lastEdited: data.lastEdited?.toDate?.().toISOString() || data.lastEdited,
+    lastPointEditedAt: data.lastPointEditedAt?.toDate?.().toISOString() || data.lastPointEditedAt,
+    currentSessionStartedAt: data.currentSessionStartedAt?.toDate?.().toISOString() || data.currentSessionStartedAt
+  };
+};
+
+/**
+ * Format seconds as h:mm:ss (e.g. "0:02:34", "1:30:00").
+ */
+export const formatDuration = (totalSeconds: number): string => {
+  if (totalSeconds < 0) totalSeconds = 0;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
 // ============= POINT FUNCTIONS =============
@@ -193,7 +301,8 @@ export const createPoint = async (
       sensation: pointData.sensation || '',
       imageUrl: pointData.imageUrl || null,
       imageUrls: pointData.imageUrls || [],
-      distanceFromStump: pointData.distanceFromStump || '',
+      locationDescription: pointData.locationDescription || '',
+      pulseLength: pointData.pulseLength || '',
       order: typeof pointData.order === 'number' ? pointData.order : 0,
       createdAt: now
     };
@@ -205,6 +314,8 @@ export const createPoint = async (
       cleanData
     );
     console.log('✅ Point created successfully with ID:', docRef.id);
+
+    await touchExamPointEdit(examId);
 
     return {
       id: docRef.id,
@@ -260,6 +371,7 @@ export const updatePoint = async (
   try {
     const pointRef = doc(db, 'examinations', examId, 'points', pointId);
     await updateDoc(pointRef, updates);
+    await touchExamPointEdit(examId);
     console.log('Point updated successfully');
   } catch (error) {
     console.error('Error updating point:', error);
@@ -297,6 +409,7 @@ export const deletePoint = async (
 
     // Delete the point document
     await deleteDoc(pointRef);
+    await touchExamPointEdit(examId);
     console.log('Point deleted successfully');
   } catch (error) {
     console.error('Error deleting point:', error);
