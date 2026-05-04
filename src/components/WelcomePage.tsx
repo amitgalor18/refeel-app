@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
-import { loadExam, getExamPoints } from '../firebaseUtils';
+import { loadExam, getExamPoints, commitSessionAndAdvance } from '../firebaseUtils';
 import type { ExamData, PointData } from '../firebaseUtils';
 
 interface WelcomePageProps {
@@ -62,7 +62,11 @@ const WelcomePage: React.FC<WelcomePageProps> = ({
                   const exam = await loadExam(loadPatientName, loadPatientId);
                   if (exam) {
                     const points = await getExamPoints(exam.id!);
-                    setExamData(exam);
+                    // Lazy-commit: if the previous session had unsaved duration
+                    // (e.g. tab closed without clicking סיים), commit it now and
+                    // start a fresh session at "now".
+                    const refreshed = await commitSessionAndAdvance(exam);
+                    setExamData(refreshed);
                     setPoints(points);
                     setCurrentPage('exam');
                     alert('בדיקה נטענה בהצלחה');

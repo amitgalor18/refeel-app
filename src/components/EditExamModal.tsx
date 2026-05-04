@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertTriangle, Edit2, Calendar, Clock } from 'lucide-react';
+import { X, AlertTriangle, Edit2, Calendar, Clock, Timer } from 'lucide-react';
 import type { ExamData } from '../firebaseUtils';
-import { updateExam, deleteExamPoints } from '../firebaseUtils';
+import { updateExam, deleteExamPoints, formatDuration } from '../firebaseUtils';
 
 interface EditExamModalProps {
     examData: ExamData;
     pointsCount: number;
+    currentSessionSeconds: number;
+    totalDurationSeconds: number;
     onClose: () => void;
     onUpdate: (updatedExam: ExamData, pointsDeleted: boolean) => void;
 }
 
-const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, onClose, onUpdate }) => {
+const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, currentSessionSeconds, totalDurationSeconds, onClose, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState<Partial<ExamData>>({ ...examData });
     const [showWarning, setShowWarning] = useState(false);
@@ -103,7 +105,7 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
 
                 <div className="p-6 space-y-6">
                     {/* Timestamps */}
-                    <div className="flex gap-6 text-sm text-gray-400 bg-bg-input p-3 rounded-lg">
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-400 bg-bg-input p-3 rounded-lg">
                         <div className="flex items-center gap-2">
                             <Calendar size={16} />
                             <span>נוצר: {formatDate(examData.dateTime)}</span>
@@ -114,6 +116,12 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                                 <span className="text-accent-blue">נערך לאחרונה: {formatDate(examData.lastEdited)}</span>
                             </div>
                         )}
+                        <div className="flex items-center gap-2">
+                            <Timer size={16} />
+                            <span title="סה״כ זמן פעיל בו נערכו נקודות">זמן פעיל מצטבר: <span className="text-text-primary font-medium">{formatDuration(totalDurationSeconds)}</span></span>
+                            <span className="text-gray-500">·</span>
+                            <span title="הזמן שעבר מאז פתחת את הבדיקה">סשן נוכחי: <span className="text-text-primary font-medium">{formatDuration(currentSessionSeconds)}</span></span>
+                        </div>
                     </div>
 
                     {!isEditing ? (
@@ -125,7 +133,7 @@ const EditExamModal: React.FC<EditExamModalProps> = ({ examData, pointsCount, on
                                     <div className="text-lg font-medium text-text-primary">{examData.patientName}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">מספר זהות</label>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">מספר נבדק</label>
                                     <div className="text-lg font-medium text-text-primary">{examData.patientId}</div>
                                 </div>
                                 <div>

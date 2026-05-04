@@ -20,7 +20,7 @@ const NewExamForm: React.FC<NewExamFormProps> = ({
   // Set default device model if not present
   React.useEffect(() => {
     if (!formData.deviceModel) {
-      setFormData({ ...formData, deviceModel: 'Beurer EM 49' });
+      setFormData({ ...formData, deviceModel: 'PAJUNK NerveStim PNS' });
     }
   }, []);
 
@@ -51,19 +51,19 @@ const NewExamForm: React.FC<NewExamFormProps> = ({
                   value={formData.patientName || ''}
                   onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
                   className="w-full p-3 bg-bg-input border-none rounded-lg text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none transition"
-                  placeholder="הכנס שם מלא"
+                  placeholder="הכנס שם או כינוי נבדק"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">מספר זהות <span className="text-error">*</span></label>
+                <label className="block text-sm font-medium text-text-primary mb-1">מספר נבדק <span className="text-error">*</span></label>
                 <input
                   type="text"
                   value={formData.patientId || ''}
                   onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
                   className="w-full p-3 bg-bg-input border-none rounded-lg text-text-primary placeholder-gray-400 focus:ring-2 focus:ring-accent-blue outline-none transition"
-                  placeholder="הכנס ת.ז."
+                  placeholder="לדוגמה: Study26-patient123B"
                   required
                 />
               </div>
@@ -130,10 +130,12 @@ const NewExamForm: React.FC<NewExamFormProps> = ({
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">דגם מכשיר עצבוב</label>
                 <select
-                  value={formData.deviceModel || 'Beurer EM 49'}
+                  value={formData.deviceModel || 'PAJUNK NerveStim PNS'}
                   onChange={(e) => setFormData({ ...formData, deviceModel: e.target.value })}
                   className="w-full p-3 bg-bg-input border-none rounded-lg text-text-primary focus:ring-2 focus:ring-accent-blue outline-none transition"
                 >
+                  <option value="PAJUNK NerveStim PNS">PAJUNK NerveStim PNS</option>
+                  <option value="Chattanooga TENS">Chattanooga TENS</option>
                   <option value="Beurer EM 49">Beurer EM 49</option>
                   <option value="Other">אחר</option>
                 </select>
@@ -166,14 +168,19 @@ const NewExamForm: React.FC<NewExamFormProps> = ({
                     limb: formData.limb || '',
                     location: formData.location || '',
                     therapistName: formData.therapistName || '',
-                    deviceModel: formData.deviceModel || 'Beurer EM 49',
+                    deviceModel: formData.deviceModel || 'PAJUNK NerveStim PNS',
                     dateTime: new Date().toISOString()
                   };
 
                   const examId = await createExam(examToSave);
+                  const nowIso = new Date().toISOString();
                   const exam = {
                     ...examToSave,
-                    id: examId
+                    id: examId,
+                    // Mirror the session fields createExam initialized server-side
+                    // so the live duration counter starts ticking from creation.
+                    currentSessionStartedAt: nowIso,
+                    totalDuration: 0
                   } as ExamData;
 
                   setExamData(exam);
