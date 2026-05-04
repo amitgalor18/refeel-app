@@ -135,6 +135,7 @@ const NewExamForm: React.FC<NewExamFormProps> = ({
                   className="w-full p-3 bg-bg-input border-none rounded-lg text-text-primary focus:ring-2 focus:ring-accent-blue outline-none transition"
                 >
                   <option value="PAJUNK NerveStim PNS">PAJUNK NerveStim PNS</option>
+                  <option value="Chattanooga TENS">Chattanooga TENS</option>
                   <option value="Beurer EM 49">Beurer EM 49</option>
                   <option value="Other">אחר</option>
                 </select>
